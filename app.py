@@ -1,3 +1,4 @@
+
 import streamlit as st
 import google.generativeai as genai
 
@@ -30,7 +31,16 @@ if st.button("🚀 Audit Copy & Redesign Live", type="primary"):
         with st.spinner("AI is analyzing conversion flaws and generating HTML/Tailwind CSS..."):
             try:
                 genai.configure(api_key=api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                # Auto-detect available models for your specific API Key
+                available_models = [
+                    m.name for m in genai.list_models() 
+                    if 'generateContent' in m.supported_generation_methods
+                ]
+                
+                # Pick the first active flash/content model returned by Google
+                selected_model = available_models[0] if available_models else "gemini-2.5-flash"
+                model = genai.GenerativeModel(selected_model)
                 
                 prompt = f"""
                 You are a world-class Conversion Rate Optimization (CRO) copywriter and UI designer.
@@ -89,7 +99,7 @@ if st.button("🚀 Audit Copy & Redesign Live", type="primary"):
                         </body>
                         </html>
                         """
-                        st.components.v1.html(full_preview, height=420, scrolling=True)
+                        st.components.v1.html(full_preview, height=480, scrolling=True)
                     else:
                         st.info("HTML output preview couldn't be parsed.")
             except Exception as e:
