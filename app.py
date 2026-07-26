@@ -10,7 +10,8 @@ st.caption("Audit weak copy and auto-render high-converting Tailwind landing pag
 # Sidebar for Free Gemini API Key
 with st.sidebar:
     st.header("1. Configuration")
-    api_key = st.text_input("Enter Free Gemini API Key:", type="password")
+    raw_api_key = st.text_input("Enter Free Gemini API Key:", type="password")
+    api_key = raw_api_key.strip() if raw_api_key else ""
     st.markdown("[Get a free Gemini API key from Google AI Studio](https://aistudio.google.com/)")
 
 # Main Input Section
@@ -27,18 +28,25 @@ if st.button("🚀 Audit Copy & Redesign Live", type="primary"):
     elif not pitch_input:
         st.warning("Please paste some text first.")
     else:
-        with st.spinner("AI is analyzing conversion flaws and generating HTML/Tailwind CSS..."):
+        with st.spinner("Connecting to Google Gemini AI..."):
             try:
+                # 1. Configure API key with automatic whitespace cleanup
                 genai.configure(api_key=api_key)
                 
-                # List of active candidate models to try in sequence
-                model_candidates = [
-                    "gemini-1.5-flash",
-                    "gemini-2.0-flash",
-                    "gemini-1.5-pro",
-                    "gemini-1.0-pro"
-                ]
-                
+                # 2. Dynamically query Google for exact model names valid for YOUR key
+                try:
+                    available_models = [
+                        m.name for m in genai.list_models() 
+                        if 'generateContent' in m.supported_generation_methods
+                    ]
+                except Exception as auth_err:
+                    st.error(f"❌ Invalid API Key or Authentication Error. Please check your key on Google AI Studio: {auth_err}")
+                    st.stop()
+
+                if not available_models:
+                    st.error("❌ No content generation models available for this API Key. Try generating a new key on Google AI Studio.")
+                    st.stop()
+
                 prompt = f"""
                 You are a world-class Conversion Rate Optimization (CRO) copywriter and UI designer.
                 Analyze this product copy/pitch: "{pitch_input}"
@@ -69,21 +77,22 @@ if st.button("🚀 Audit Copy & Redesign Live", type="primary"):
                 """
                 
                 response = None
-                successful_model = None
+                used_model_name = None
                 
-                # Try candidate models until one succeeds
-                for model_name in model_candidates:
+                # 3. Loop through the exact model strings provided directly by Google's server
+                for model_name in available_models:
                     try:
                         model = genai.GenerativeModel(model_name)
                         response = model.generate_content(prompt)
                         if response and response.text:
-                            successful_model = model_name
+                            used_model_name = model_name
                             break
                     except Exception:
                         continue
                 
-                if not response:
-                    raise Exception("Could not connect to any available Gemini model candidates. Please verify your API Key in Google AI Studio.")
+                if not response or not response.text:
+                    st.error("❌ Could not get a response from Google. Please check your AI Studio quota.")
+                    st.stop()
 
                 raw_output = response.text
                 
@@ -98,7 +107,7 @@ if st.button("🚀 Audit Copy & Redesign Live", type="primary"):
                 
                 with col1:
                     st.subheader("📊 Conversion Audit")
-                    st.caption(f"Powered by `{successful_model}`")
+                    st.caption(f"Connected Model: `{used_model_name}`")
                     st.markdown(audit_text)
                     
                 with col2:
@@ -117,4 +126,4 @@ if st.button("🚀 Audit Copy & Redesign Live", type="primary"):
                     else:
                         st.info("HTML output preview couldn't be parsed.")
             except Exception as e:
-                st.error(f"Error executing AI call: {e}")
+                st.error(f"Unexpected Error: {e}")
