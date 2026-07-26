@@ -1,4 +1,3 @@
-
 import streamlit as st
 import google.generativeai as genai
 
@@ -32,15 +31,13 @@ if st.button("🚀 Audit Copy & Redesign Live", type="primary"):
             try:
                 genai.configure(api_key=api_key)
                 
-                # Auto-detect available models for your specific API Key
-                available_models = [
-                    m.name for m in genai.list_models() 
-                    if 'generateContent' in m.supported_generation_methods
+                # List of active candidate models to try in sequence
+                model_candidates = [
+                    "gemini-1.5-flash",
+                    "gemini-2.0-flash",
+                    "gemini-1.5-pro",
+                    "gemini-1.0-pro"
                 ]
-                
-                # Pick the first active flash/content model returned by Google
-                selected_model = available_models[0] if available_models else "gemini-2.5-flash"
-                model = genai.GenerativeModel(selected_model)
                 
                 prompt = f"""
                 You are a world-class Conversion Rate Optimization (CRO) copywriter and UI designer.
@@ -71,7 +68,23 @@ if st.button("🚀 Audit Copy & Redesign Live", type="primary"):
                 Fill the HTML snippet with compelling rewritten content based on the user's pitch.
                 """
                 
-                response = model.generate_content(prompt)
+                response = None
+                successful_model = None
+                
+                # Try candidate models until one succeeds
+                for model_name in model_candidates:
+                    try:
+                        model = genai.GenerativeModel(model_name)
+                        response = model.generate_content(prompt)
+                        if response and response.text:
+                            successful_model = model_name
+                            break
+                    except Exception:
+                        continue
+                
+                if not response:
+                    raise Exception("Could not connect to any available Gemini model candidates. Please verify your API Key in Google AI Studio.")
+
                 raw_output = response.text
                 
                 # Separate text analysis from HTML code block
@@ -85,6 +98,7 @@ if st.button("🚀 Audit Copy & Redesign Live", type="primary"):
                 
                 with col1:
                     st.subheader("📊 Conversion Audit")
+                    st.caption(f"Powered by `{successful_model}`")
                     st.markdown(audit_text)
                     
                 with col2:
