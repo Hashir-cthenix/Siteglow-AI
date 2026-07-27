@@ -1,129 +1,169 @@
 import streamlit as st
 import google.generativeai as genai
+import json
+import re
 
 # App Layout Configuration
-st.set_page_config(page_title="SiteGlow AI", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="SiteGlow AI — Conversion & Design Engine", page_icon="⚡", layout="wide")
 
-st.title("⚡ SiteGlow AI — Instant Conversion & Design Healer")
-st.caption("Audit weak copy and auto-render high-converting Tailwind landing page components in seconds.")
+# Custom CSS styling for Streamlit UI
+st.markdown("""
+<style>
+    .main-title { font-size: 2.2rem; font-weight: 800; color: #6366f1; margin-bottom: 0px; }
+    .sub-title { font-size: 1rem; color: #94a3b8; margin-bottom: 25px; }
+    .stButton>button { width: 100%; border-radius: 8px; font-weight: 600; background: linear-gradient(90deg, #4f46e5, #7c3aed); color: white; border: none; height: 3rem; }
+    .stButton>button:hover { background: linear-gradient(90deg, #4338ca, #6d28d9); color: white; }
+</style>
+""", unsafe_allow_html=True)
 
-# Sidebar for Free Gemini API Key
+st.markdown('<div class="main-title">⚡ SiteGlow AI</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Instant Conversion Rate Audit & Live High-Converting UI Generator</div>', unsafe_allow_html=True)
+
+# Sidebar Configuration
 with st.sidebar:
-    st.header("1. Configuration")
+    st.header("⚙️ Engine Setup")
     raw_api_key = st.text_input("Enter Free Gemini API Key:", type="password")
     api_key = raw_api_key.strip() if raw_api_key else ""
     st.markdown("[Get a free Gemini API key from Google AI Studio](https://aistudio.google.com/)")
+    st.divider()
+    st.caption("Built for Prometheus July AI Challenge")
 
 # Main Input Section
-st.subheader("2. Input Landing Page Copy or Pitch")
 pitch_input = st.text_area(
-    "Paste product text below:",
-    height=140,
-    placeholder="e.g. We created an app that helps remote teams track tasks and share notes fast..."
+    "Paste your raw product pitch or website copy below:",
+    height=120,
+    placeholder="e.g. We built a tool for remote teams. It lets you send messages and share tasks. Try it today."
 )
 
-if st.button("🚀 Audit Copy & Redesign Live", type="primary"):
+if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
     if not api_key:
         st.error("Please enter your Gemini API Key in the sidebar.")
     elif not pitch_input:
         st.warning("Please paste some text first.")
     else:
-        with st.spinner("Connecting to Google Gemini AI..."):
+        with st.spinner("Analyzing psychological hooks and building high-converting UI..."):
             try:
-                # 1. Configure API key with automatic whitespace cleanup
                 genai.configure(api_key=api_key)
                 
-                # 2. Dynamically query Google for exact model names valid for YOUR key
-                try:
-                    available_models = [
-                        m.name for m in genai.list_models() 
-                        if 'generateContent' in m.supported_generation_methods
-                    ]
-                except Exception as auth_err:
-                    st.error(f"❌ Invalid API Key or Authentication Error. Please check your key on Google AI Studio: {auth_err}")
-                    st.stop()
-
+                # Dynamic model discovery
+                available_models = [
+                    m.name for m in genai.list_models() 
+                    if 'generateContent' in m.supported_generation_methods
+                ]
+                
                 if not available_models:
-                    st.error("❌ No content generation models available for this API Key. Try generating a new key on Google AI Studio.")
+                    st.error("❌ No content models available for this key.")
                     st.stop()
 
                 prompt = f"""
-                You are a world-class Conversion Rate Optimization (CRO) copywriter and UI designer.
-                Analyze this product copy/pitch: "{pitch_input}"
-                
-                Respond in this strict structure:
-                ### AUDIT & CONVERSION FLAWS
-                - **Headline Issue:** [Explanation]
-                - **Value Prop Issue:** [Explanation]
-                - **CTA Issue:** [Explanation]
-                
-                ### ACTIONABLE FIXES
-                - **Fix 1:** [Recommendation]
-                - **Fix 2:** [Recommendation]
-                
-                ### HTML
-                ```html
-                <div class="bg-slate-900 text-white p-8 rounded-2xl max-w-2xl mx-auto shadow-2xl border border-slate-800 font-sans">
-                    <span class="bg-indigo-500/10 text-indigo-400 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-500/20">NEW RELEASE</span>
-                    <h1 class="text-3xl font-extrabold mt-4 mb-2 tracking-tight text-white">[High Converting Rewritten Headline]</h1>
-                    <p class="text-slate-400 text-sm mb-6">[Clear, sharp 2-sentence value proposition]</p>
-                    <div class="flex gap-3">
-                        <button class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-5 py-2.5 rounded-lg shadow-lg transition-all">Get Started Free →</button>
-                        <button class="bg-slate-800 text-slate-300 font-medium text-sm px-5 py-2.5 rounded-lg border border-slate-700">View Demo</button>
-                    </div>
-                </div>
-                ```
-                Fill the HTML snippet with compelling rewritten content based on the user's pitch.
+                You are a top CRO (Conversion Rate Optimization) expert and SaaS designer.
+                Analyze this copy: "{pitch_input}"
+
+                Return ONLY a single valid JSON object strictly formatted as follows (no extra conversational text, no markdown backticks outside json):
+                {{
+                    "original_score": 35,
+                    "headline_flaw": "Specific critical issue with the current headline.",
+                    "value_prop_flaw": "Specific critical issue with the current value proposition.",
+                    "cta_flaw": "Specific issue with the call to action.",
+                    "badge_text": "AI-POWERED WORKFLOWS",
+                    "rewritten_headline": "An explosive, high-converting outcome-driven headline",
+                    "rewritten_subheadline": "A clear 2-sentence value proposition focusing on eliminating customer pain points and saving time.",
+                    "cta_primary": "Start Free Trial →",
+                    "cta_secondary": "Watch 2-Min Demo"
+                }}
                 """
                 
                 response = None
-                used_model_name = None
-                
-                # 3. Loop through the exact model strings provided directly by Google's server
                 for model_name in available_models:
                     try:
                         model = genai.GenerativeModel(model_name)
                         response = model.generate_content(prompt)
                         if response and response.text:
-                            used_model_name = model_name
                             break
                     except Exception:
                         continue
                 
                 if not response or not response.text:
-                    st.error("❌ Could not get a response from Google. Please check your AI Studio quota.")
+                    st.error("❌ Failed to fetch AI response. Please check your API key quota.")
                     st.stop()
 
-                raw_output = response.text
-                
-                # Separate text analysis from HTML code block
-                audit_text = raw_output.split("### HTML")[0] if "### HTML" in raw_output else raw_output
-                html_code = ""
-                if "```html" in raw_output:
-                    html_code = raw_output.split("```html")[1].split("```")[0].strip()
-                
-                # Display side-by-side results
-                col1, col2 = st.columns([1, 1])
-                
-                with col1:
-                    st.subheader("📊 Conversion Audit")
-                    st.caption(f"Connected Model: `{used_model_name}`")
-                    st.markdown(audit_text)
+                # Clean and parse JSON output
+                clean_text = response.text.replace("```json", "").replace("```", "").strip()
+                data = json.loads(clean_text)
+
+                # Extract parsed fields with fallbacks
+                orig_score = data.get("original_score", 40)
+                badge = data.get("badge_text", "NEW FEATURE")
+                headline = data.get("rewritten_headline", "Eliminate Chaos and Streamline Your Workflow")
+                subheadline = data.get("rewritten_subheadline", "Stop jumping between fragmented tools. Centralize communication and project execution in one unified workspace.")
+                cta_primary = data.get("cta_primary", "Get Started Free →")
+                cta_secondary = data.get("cta_secondary", "View Live Demo")
+
+                # Streamlit Display Tabs
+                tab1, tab2, tab3 = st.tabs(["📊 Conversion Scorecard", "✨ Live Hero Redesign", "💻 Export Code"])
+
+                with tab1:
+                    col_score1, col_score2 = st.columns([1, 2])
+                    with col_score1:
+                        st.metric("Original Copy Health Score", f"{orig_score} / 100", delta=f"+{95 - orig_score} Potential Boost", delta_color="normal")
+                        st.warning("⚠️ High bounce rate risk detected in current copy.")
                     
-                with col2:
-                    st.subheader("✨ Auto-Rendered Hero Redesign")
-                    if html_code:
-                        full_preview = f"""
-                        <!DOCTYPE html>
-                        <html>
-                        <head><script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script></head>
-                        <body class="bg-slate-950 p-4">
-                            {html_code}
-                        </body>
-                        </html>
-                        """
-                        st.components.v1.html(full_preview, height=480, scrolling=True)
-                    else:
-                        st.info("HTML output preview couldn't be parsed.")
+                    with col_score2:
+                        st.subheader("🔍 Breakdown & Conversion Flaws")
+                        st.markdown(f"**❌ Headline Flaw:** {data.get('headline_flaw', 'Focuses on building the tool rather than customer value.')}")
+                        st.markdown(f"**❌ Value Prop Flaw:** {data.get('value_prop_flaw', 'Lists commodity features instead of desired outcomes.')}")
+                        st.markdown(f"**❌ CTA Flaw:** {data.get('cta_flaw', 'Generic button copy with low motivation.')}")
+
+                with tab2:
+                    st.subheader("✨ Auto-Rendered High-Converting Hero")
+                    # Injected High-Contrast Glassmorphic Dark-Mode HTML Template
+                    hero_html = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <script src="https://cdn.tailwindcss.com"></script>
+                        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+                        <style>
+                            body {{ font-family: 'Plus Jakarta Sans', sans-serif; background-color: #090d16; color: #ffffff; margin: 0; padding: 20px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="relative max-w-3xl mx-auto bg-slate-900/90 border border-slate-800 rounded-3xl p-10 shadow-2xl overflow-hidden">
+                            <!-- Background Glow Effect -->
+                            <div class="absolute -top-24 -left-24 w-72 h-72 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                            <div class="absolute -bottom-24 -right-24 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                            
+                            <div class="relative z-10 text-center">
+                                <span class="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-bold px-4 py-1.5 rounded-full mb-6 tracking-wide uppercase">
+                                    ✨ {badge}
+                                </span>
+                                
+                                <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-4 leading-tight">
+                                    {headline}
+                                </h1>
+                                
+                                <p class="text-slate-300 text-base md:text-lg mb-8 max-w-2xl mx-auto leading-relaxed">
+                                    {subheadline}
+                                </p>
+                                
+                                <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                                    <button class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-8 py-3.5 rounded-xl shadow-lg shadow-indigo-500/25 transition-all duration-200">
+                                        {cta_primary}
+                                    </button>
+                                    <button class="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-8 py-3.5 rounded-xl border border-slate-700 transition-all duration-200">
+                                        {cta_secondary}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    """
+                    st.components.v1.html(hero_html, height=480, scrolling=False)
+
+                with tab3:
+                    st.subheader("💻 Ready-to-Use Tailwind HTML")
+                    st.code(hero_html, language="html")
+
             except Exception as e:
-                st.error(f"Unexpected Error: {e}")
+                st.error(f"Unexpected error occurred: {e}")
