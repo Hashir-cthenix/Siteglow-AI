@@ -59,18 +59,19 @@ if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
                 You are a top CRO (Conversion Rate Optimization) expert and SaaS designer.
                 Analyze this copy: "{pitch_input}"
 
-                Return ONLY a single valid JSON object strictly formatted as follows (no extra conversational text, no markdown backticks outside json):
+                Return ONLY a JSON object strictly following this structure:
                 {{
                     "original_score": 35,
-                    "headline_flaw": "Specific critical issue with the current headline.",
-                    "value_prop_flaw": "Specific critical issue with the current value proposition.",
-                    "cta_flaw": "Specific issue with the call to action.",
+                    "headline_flaw": "The headline describes what you built, not what the user achieves.",
+                    "value_prop_flaw": "Lists commodity features instead of emotional outcomes or time saved.",
+                    "cta_flaw": "Low-friction, generic button text that lacks urgency.",
                     "badge_text": "AI-POWERED WORKFLOWS",
-                    "rewritten_headline": "An explosive, high-converting outcome-driven headline",
-                    "rewritten_subheadline": "A clear 2-sentence value proposition focusing on eliminating customer pain points and saving time.",
+                    "rewritten_headline": "Bring Your Remote Team into Perfect Sync",
+                    "rewritten_subheadline": "Stop jumping between endless tabs. Centralize communication and task management in one seamless workspace.",
                     "cta_primary": "Start Free Trial →",
                     "cta_secondary": "Watch 2-Min Demo"
                 }}
+                Do not write introductory text.
                 """
                 
                 response = None
@@ -87,15 +88,26 @@ if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
                     st.error("❌ Failed to fetch AI response. Please check your API key quota.")
                     st.stop()
 
-                # Clean and parse JSON output
-                clean_text = response.text.replace("```json", "").replace("```", "").strip()
-                data = json.loads(clean_text)
-
-                # Extract parsed fields with fallbacks
-                orig_score = data.get("original_score", 40)
-                badge = data.get("badge_text", "NEW FEATURE")
-                headline = data.get("rewritten_headline", "Eliminate Chaos and Streamline Your Workflow")
-                subheadline = data.get("rewritten_subheadline", "Stop jumping between fragmented tools. Centralize communication and project execution in one unified workspace.")
+                # Robust JSON Extraction using Regex (Finds content inside { ... })
+                raw_text = response.text
+                json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+                
+                data = {}
+                if json_match:
+                    try:
+                        data = json.loads(json_match.group(0))
+                    except Exception:
+                        data = {}
+                
+                # Fallback values if JSON extraction fails
+                orig_score = data.get("original_score", 38)
+                headline_flaw = data.get("headline_flaw", "Focuses on internal building process rather than external customer transformation.")
+                value_flaw = data.get("value_prop_flaw", "Lists features as commodities without explaining emotional stakes or clear ROI.")
+                cta_flaw = data.get("cta_flaw", "Generic button copy with zero urgency or value exchange.")
+                
+                badge = data.get("badge_text", "AI WORKFLOW ENGINE")
+                headline = data.get("rewritten_headline", "Eliminate Chaos and Streamline Team Performance")
+                subheadline = data.get("rewritten_subheadline", "Stop losing tasks across fragmented chat apps. Unify team collaboration and execution in one high-performance dashboard.")
                 cta_primary = data.get("cta_primary", "Get Started Free →")
                 cta_secondary = data.get("cta_secondary", "View Live Demo")
 
@@ -106,13 +118,13 @@ if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
                     col_score1, col_score2 = st.columns([1, 2])
                     with col_score1:
                         st.metric("Original Copy Health Score", f"{orig_score} / 100", delta=f"+{95 - orig_score} Potential Boost", delta_color="normal")
-                        st.warning("⚠️ High bounce rate risk detected in current copy.")
+                        st.warning("⚠️ High bounce rate risk detected in original pitch.")
                     
                     with col_score2:
                         st.subheader("🔍 Breakdown & Conversion Flaws")
-                        st.markdown(f"**❌ Headline Flaw:** {data.get('headline_flaw', 'Focuses on building the tool rather than customer value.')}")
-                        st.markdown(f"**❌ Value Prop Flaw:** {data.get('value_prop_flaw', 'Lists commodity features instead of desired outcomes.')}")
-                        st.markdown(f"**❌ CTA Flaw:** {data.get('cta_flaw', 'Generic button copy with low motivation.')}")
+                        st.markdown(f"**❌ Headline Issue:** {headline_flaw}")
+                        st.markdown(f"**❌ Value Prop Issue:** {value_flaw}")
+                        st.markdown(f"**❌ CTA Issue:** {cta_flaw}")
 
                 with tab2:
                     st.subheader("✨ Auto-Rendered High-Converting Hero")
