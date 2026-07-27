@@ -29,7 +29,6 @@ def extract_website_content(url):
         soup = BeautifulSoup(response.text, 'html.parser')
         
         title = soup.title.string if soup.title else ""
-        
         meta_desc = ""
         meta_tag = soup.find('meta', attrs={'name': 'description'}) or soup.find('meta', attrs={'property': 'og:description'})
         if meta_tag and meta_tag.get('content'):
@@ -38,10 +37,9 @@ def extract_website_content(url):
         headings = [h.get_text().strip() for h in soup.find_all(['h1', 'h2']) if h.get_text().strip()]
         paragraphs = [p.get_text().strip() for p in soup.find_all('p') if p.get_text().strip()][:3]
         
-        scraped_summary = f"Page Title: {title}\nMeta Description: {meta_desc}\nHeadings: {' | '.join(headings[:4])}\nSample Text: {' '.join(paragraphs)}"
-        return scraped_summary[:1500]
+        return f"Page Title: {title}\nMeta Description: {meta_desc}\nHeadings: {' | '.join(headings[:4])}\nSample Text: {' '.join(paragraphs)}"[:1500]
     except Exception as e:
-        return f"Could not automatically fetch URL content: {e}. Analyzing URL text directly."
+        return f"Could not fetch URL: {e}"
 
 # Sidebar Configuration
 with st.sidebar:
@@ -56,7 +54,7 @@ with st.sidebar:
 user_input = st.text_area(
     "Paste product pitch OR website URL below:",
     height=120,
-    placeholder="e.g. https://stripe.com OR 'We built a team chat tool that helps remote workers...'"
+    placeholder="e.g. https://stripe.com OR 'Stop Losing 40% of Revenue to Forgotten Carts...'"
 )
 
 if st.button("🚀 Analyze & Auto-Redesign Live", type="primary"):
@@ -65,86 +63,100 @@ if st.button("🚀 Analyze & Auto-Redesign Live", type="primary"):
     elif not user_input:
         st.warning("Please paste some text or a website URL first.")
     else:
-        with st.spinner("Processing input and building high-converting UI..."):
+        with st.spinner("Analyzing conversion hooks with Gemini AI..."):
             try:
-                # Determine if input is a URL or raw text
                 processed_copy = user_input.strip()
                 is_url = processed_copy.startswith("http://") or processed_copy.startswith("https://")
                 
                 if is_url:
-                    st.info(f"🌐 Website URL detected! Auto-extracting live content from `{processed_copy}`...")
+                    st.info(f"🌐 Website URL detected! Auto-extracting content from `{processed_copy}`...")
                     processed_copy = extract_website_content(processed_copy)
 
                 genai.configure(api_key=api_key)
                 
-                # Dynamic model discovery
-                available_models = [
-                    m.name for m in genai.list_models() 
-                    if 'generateContent' in m.supported_generation_methods
+                # Fetch models and prioritize high-intelligence Gemini models
+                all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                
+                priority_list = [
+                    "models/gemini-1.5-pro",
+                    "models/gemini-2.0-flash",
+                    "models/gemini-1.5-flash",
+                    "models/gemini-1.0-pro"
                 ]
                 
+                available_models = [m for m in priority_list if m in all_models] + [m for m in all_models if m not in priority_list]
+
                 if not available_models:
-                    st.error("❌ No content models available for this key.")
+                    st.error("❌ No content models available for this API key.")
                     st.stop()
+
                 prompt = f"""
-                You are an elite Conversion Rate Optimization (CRO) expert.
+                You are a world-class Conversion Rate Optimization (CRO) expert.
                 Evaluate this business copy/content: "{processed_copy}"
 
                 EVALUATION RULES:
-                - If the copy is weak/generic, assign a LOW score (20–60), detail critical flaws, and create a high-converting redesign.
-                - If the copy is ALREADY exceptional, catchy, and high-converting, assign a HIGH score (85–98), mark flaws as "None — Copy is already clear and outcome-driven!", and keep/enhance the strong messaging in the hero block.
+                - Assign a precise float score between 10.0 and 99.0 based on clarity and value proposition.
+                - If an element (Headline, Value Prop, CTA) is already excellent, start the text with "None — " (e.g. "None — Headline is catchy and outcome-driven.").
+                - If an element needs work, clearly explain the specific conversion flaw.
 
-                Return ONLY a JSON object strictly formatted as:
+                Return ONLY a JSON object strictly following this structure:
                 {{
-                    "original_score": 85,
-                    "headline_flaw": "Specific flaw OR 'None — Headline is strong, outcome-focused, and catchy.'",
-                    "value_prop_flaw": "Specific flaw OR 'None — Value proposition clearly articulates benefits.'",
-                    "cta_flaw": "Specific flaw OR 'None — Call to action is high-friction and compelling.'",
-                    "badge_text": "HIGH-CONVERTING COPY",
-                    "rewritten_headline": "Preserved or slightly polished headline",
-                    "rewritten_subheadline": "Preserved or slightly polished subheadline",
-                    "cta_primary": "Primary CTA text",
-                    "cta_secondary": "Secondary CTA text"
+                    "original_score": 88.5,
+                    "headline_flaw": "None — Headline is strong, outcome-focused, and catchy.",
+                    "value_prop_flaw": "None — Value proposition clearly articulates benefits.",
+                    "cta_flaw": "The copy lacks a clear action-oriented CTA button text.",
+                    "badge_text": "HIGH CONVERSION POTENTIAL",
+                    "rewritten_headline": "Stop Losing 40% of Revenue to Forgotten Carts",
+                    "rewritten_subheadline": "Recover lost ecommerce sales automatically with personalized WhatsApp reminders in under 60 seconds.",
+                    "cta_primary": "Start Recovering Sales →",
+                    "cta_secondary": "View Demo"
                 }}
                 Do not include extra text outside JSON.
                 """
                 
                 response = None
+                used_model = None
                 for model_name in available_models:
                     try:
                         model = genai.GenerativeModel(model_name)
                         response = model.generate_content(prompt)
                         if response and response.text:
+                            used_model = model_name
                             break
                     except Exception:
                         continue
                 
                 if not response or not response.text:
-                    st.error("❌ Failed to fetch AI response. Please check your API key quota.")
+                    st.error("❌ Failed to fetch AI response.")
                     st.stop()
 
                 # Robust JSON Extraction
-                raw_text = response.text
-                json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+                json_match = re.search(r'\{.*\}', response.text, re.DOTALL)
+                data = json.loads(json_match.group(0)) if json_match else {}
                 
-                data = {}
-                if json_match:
-                    try:
-                        data = json.loads(json_match.group(0))
-                    except Exception:
-                        data = {}
+                # Parse Score as Float (Decimal precision)
+                raw_score = data.get("original_score", 75.0)
+                try:
+                    orig_score = round(float(raw_score), 1)
+                except Exception:
+                    orig_score = 75.0
                 
-                # Fallback values
-                orig_score = data.get("original_score", 38)
-                headline_flaw = data.get("headline_flaw", "Focuses on internal building process rather than customer value.")
-                value_flaw = data.get("value_prop_flaw", "Lists features as commodities without explaining emotional stakes.")
-                cta_flaw = data.get("cta_flaw", "Generic button copy with zero urgency.")
+                headline_flaw = data.get("headline_flaw", "Focuses on features rather than outcomes.")
+                value_flaw = data.get("value_prop_flaw", "Lists commodities without emotional stakes.")
+                cta_flaw = data.get("cta_flaw", "Generic button text with low urgency.")
                 
                 badge = data.get("badge_text", "AI WORKFLOW ENGINE")
-                headline = data.get("rewritten_headline", "Eliminate Chaos and Streamline Team Performance")
-                subheadline = data.get("rewritten_subheadline", "Stop losing tasks across fragmented chat apps. Unify team collaboration and execution in one workspace.")
+                headline = data.get("rewritten_headline", "Eliminate Chaos & Streamline Performance")
+                subheadline = data.get("rewritten_subheadline", "Unify team communication and task execution in one platform.")
                 cta_primary = data.get("cta_primary", "Get Started Free →")
                 cta_secondary = data.get("cta_secondary", "View Live Demo")
+
+                # Helper to determine Green Tick vs Red Cross
+                def get_icon(flaw_text):
+                    clean = flaw_text.strip().lower()
+                    if clean.startswith("none") or "strong" in clean or "excellent" in clean or "good" in clean:
+                        return "✅"
+                    return "❌"
 
                 # Streamlit Display Tabs
                 tab1, tab2, tab3 = st.tabs(["📊 Conversion Scorecard", "✨ Live Hero Redesign", "💻 Export Code"])
@@ -152,14 +164,23 @@ if st.button("🚀 Analyze & Auto-Redesign Live", type="primary"):
                 with tab1:
                     col_score1, col_score2 = st.columns([1, 2])
                     with col_score1:
-                        st.metric("Original Copy Health Score", f"{orig_score} / 100", delta=f"+{95 - orig_score} Potential Boost", delta_color="normal")
-                        st.warning("⚠️ High bounce rate risk detected in original content.")
+                        potential_boost = round(max(0.0, 98.0 - orig_score), 1)
+                        st.metric("Original Copy Health Score", f"{orig_score} / 100", delta=f"+{potential_boost} Potential Boost", delta_color="normal")
+                        st.caption(f"Evaluated by `{used_model}`")
+                        
+                        # Dynamic Adaptive Risk Banner
+                        if orig_score >= 80.0:
+                            st.success("🎉 **High-Converting Copy!** Exceptional messaging structure with minimal friction.")
+                        elif orig_score >= 60.0:
+                            st.info("💡 **Good Foundation.** Minor messaging tweaks recommended to optimize conversions.")
+                        else:
+                            st.warning("⚠️ **High Bounce Rate Risk.** Critical conversion flaws detected in positioning.")
                     
                     with col_score2:
                         st.subheader("🔍 Breakdown & Conversion Flaws")
-                        st.markdown(f"**❌ Headline Issue:** {headline_flaw}")
-                        st.markdown(f"**❌ Value Prop Issue:** {value_flaw}")
-                        st.markdown(f"**❌ CTA Issue:** {cta_flaw}")
+                        st.markdown(f"**{get_icon(headline_flaw)} Headline:** {headline_flaw}")
+                        st.markdown(f"**{get_icon(value_flaw)} Value Prop:** {value_flaw}")
+                        st.markdown(f"**{get_icon(cta_flaw)} CTA:** {cta_flaw}")
 
                 with tab2:
                     st.subheader("✨ Auto-Rendered High-Converting Hero")
