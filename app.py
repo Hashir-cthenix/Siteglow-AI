@@ -2,6 +2,8 @@ import streamlit as st
 import google.generativeai as genai
 import json
 import re
+import requests
+from bs4 import BeautifulSoup
 
 # App Layout Configuration
 st.set_page_config(page_title="SiteGlow AI — Conversion & Design Engine", page_icon="⚡", layout="wide")
@@ -19,6 +21,28 @@ st.markdown("""
 st.markdown('<div class="main-title">⚡ SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">Instant Conversion Rate Audit & Live High-Converting UI Generator</div>', unsafe_allow_html=True)
 
+# Helper Function: Web Scraper for URLs
+def extract_website_content(url):
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        response = requests.get(url, headers=headers, timeout=6)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        title = soup.title.string if soup.title else ""
+        
+        meta_desc = ""
+        meta_tag = soup.find('meta', attrs={'name': 'description'}) or soup.find('meta', attrs={'property': 'og:description'})
+        if meta_tag and meta_tag.get('content'):
+            meta_desc = meta_tag['content']
+            
+        headings = [h.get_text().strip() for h in soup.find_all(['h1', 'h2']) if h.get_text().strip()]
+        paragraphs = [p.get_text().strip() for p in soup.find_all('p') if p.get_text().strip()][:3]
+        
+        scraped_summary = f"Page Title: {title}\nMeta Description: {meta_desc}\nHeadings: {' | '.join(headings[:4])}\nSample Text: {' '.join(paragraphs)}"
+        return scraped_summary[:1500]
+    except Exception as e:
+        return f"Could not automatically fetch URL content: {e}. Analyzing URL text directly."
+
 # Sidebar Configuration
 with st.sidebar:
     st.header("⚙️ Engine Setup")
@@ -29,20 +53,28 @@ with st.sidebar:
     st.caption("Built for Prometheus July AI Challenge")
 
 # Main Input Section
-pitch_input = st.text_area(
-    "Paste your raw product pitch or website copy below:",
+user_input = st.text_area(
+    "Paste product pitch OR website URL below:",
     height=120,
-    placeholder="e.g. We built a tool for remote teams. It lets you send messages and share tasks. Try it today."
+    placeholder="e.g. https://stripe.com OR 'We built a team chat tool that helps remote workers...'"
 )
 
-if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
+if st.button("🚀 Analyze & Auto-Redesign Live", type="primary"):
     if not api_key:
         st.error("Please enter your Gemini API Key in the sidebar.")
-    elif not pitch_input:
-        st.warning("Please paste some text first.")
+    elif not user_input:
+        st.warning("Please paste some text or a website URL first.")
     else:
-        with st.spinner("Analyzing psychological hooks and building high-converting UI..."):
+        with st.spinner("Processing input and building high-converting UI..."):
             try:
+                # Determine if input is a URL or raw text
+                processed_copy = user_input.strip()
+                is_url = processed_copy.startswith("http://") or processed_copy.startswith("https://")
+                
+                if is_url:
+                    st.info(f"🌐 Website URL detected! Auto-extracting live content from `{processed_copy}`...")
+                    processed_copy = extract_website_content(processed_copy)
+
                 genai.configure(api_key=api_key)
                 
                 # Dynamic model discovery
@@ -57,7 +89,7 @@ if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
 
                 prompt = f"""
                 You are a top CRO (Conversion Rate Optimization) expert and SaaS designer.
-                Analyze this copy: "{pitch_input}"
+                Analyze this business copy/content: "{processed_copy}"
 
                 Return ONLY a JSON object strictly following this structure:
                 {{
@@ -88,7 +120,7 @@ if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
                     st.error("❌ Failed to fetch AI response. Please check your API key quota.")
                     st.stop()
 
-                # Robust JSON Extraction using Regex (Finds content inside { ... })
+                # Robust JSON Extraction
                 raw_text = response.text
                 json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
                 
@@ -99,15 +131,15 @@ if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
                     except Exception:
                         data = {}
                 
-                # Fallback values if JSON extraction fails
+                # Fallback values
                 orig_score = data.get("original_score", 38)
-                headline_flaw = data.get("headline_flaw", "Focuses on internal building process rather than external customer transformation.")
-                value_flaw = data.get("value_prop_flaw", "Lists features as commodities without explaining emotional stakes or clear ROI.")
-                cta_flaw = data.get("cta_flaw", "Generic button copy with zero urgency or value exchange.")
+                headline_flaw = data.get("headline_flaw", "Focuses on internal building process rather than customer value.")
+                value_flaw = data.get("value_prop_flaw", "Lists features as commodities without explaining emotional stakes.")
+                cta_flaw = data.get("cta_flaw", "Generic button copy with zero urgency.")
                 
                 badge = data.get("badge_text", "AI WORKFLOW ENGINE")
                 headline = data.get("rewritten_headline", "Eliminate Chaos and Streamline Team Performance")
-                subheadline = data.get("rewritten_subheadline", "Stop losing tasks across fragmented chat apps. Unify team collaboration and execution in one high-performance dashboard.")
+                subheadline = data.get("rewritten_subheadline", "Stop losing tasks across fragmented chat apps. Unify team collaboration and execution in one workspace.")
                 cta_primary = data.get("cta_primary", "Get Started Free →")
                 cta_secondary = data.get("cta_secondary", "View Live Demo")
 
@@ -118,7 +150,7 @@ if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
                     col_score1, col_score2 = st.columns([1, 2])
                     with col_score1:
                         st.metric("Original Copy Health Score", f"{orig_score} / 100", delta=f"+{95 - orig_score} Potential Boost", delta_color="normal")
-                        st.warning("⚠️ High bounce rate risk detected in original pitch.")
+                        st.warning("⚠️ High bounce rate risk detected in original content.")
                     
                     with col_score2:
                         st.subheader("🔍 Breakdown & Conversion Flaws")
@@ -128,7 +160,6 @@ if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
 
                 with tab2:
                     st.subheader("✨ Auto-Rendered High-Converting Hero")
-                    # Injected High-Contrast Glassmorphic Dark-Mode HTML Template
                     hero_html = f"""
                     <!DOCTYPE html>
                     <html>
@@ -141,7 +172,6 @@ if st.button("🚀 Analyze Copy & Generate Redesign", type="primary"):
                     </head>
                     <body>
                         <div class="relative max-w-3xl mx-auto bg-slate-900/90 border border-slate-800 rounded-3xl p-10 shadow-2xl overflow-hidden">
-                            <!-- Background Glow Effect -->
                             <div class="absolute -top-24 -left-24 w-72 h-72 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
                             <div class="absolute -bottom-24 -right-24 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
                             
