@@ -86,24 +86,27 @@ if st.button("🚀 Analyze & Auto-Redesign Live", type="primary"):
                 if not available_models:
                     st.error("❌ No content models available for this key.")
                     st.stop()
-
                 prompt = f"""
-                You are a top CRO (Conversion Rate Optimization) expert and SaaS designer.
-                Analyze this business copy/content: "{processed_copy}"
+                You are an elite Conversion Rate Optimization (CRO) expert.
+                Evaluate this business copy/content: "{processed_copy}"
 
-                Return ONLY a JSON object strictly following this structure:
+                EVALUATION RULES:
+                - If the copy is weak/generic, assign a LOW score (20–60), detail critical flaws, and create a high-converting redesign.
+                - If the copy is ALREADY exceptional, catchy, and high-converting, assign a HIGH score (85–98), mark flaws as "None — Copy is already clear and outcome-driven!", and keep/enhance the strong messaging in the hero block.
+
+                Return ONLY a JSON object strictly formatted as:
                 {{
-                    "original_score": 35,
-                    "headline_flaw": "The headline describes what you built, not what the user achieves.",
-                    "value_prop_flaw": "Lists commodity features instead of emotional outcomes or time saved.",
-                    "cta_flaw": "Low-friction, generic button text that lacks urgency.",
-                    "badge_text": "AI-POWERED WORKFLOWS",
-                    "rewritten_headline": "Bring Your Remote Team into Perfect Sync",
-                    "rewritten_subheadline": "Stop jumping between endless tabs. Centralize communication and task management in one seamless workspace.",
-                    "cta_primary": "Start Free Trial →",
-                    "cta_secondary": "Watch 2-Min Demo"
+                    "original_score": 85,
+                    "headline_flaw": "Specific flaw OR 'None — Headline is strong, outcome-focused, and catchy.'",
+                    "value_prop_flaw": "Specific flaw OR 'None — Value proposition clearly articulates benefits.'",
+                    "cta_flaw": "Specific flaw OR 'None — Call to action is high-friction and compelling.'",
+                    "badge_text": "HIGH-CONVERTING COPY",
+                    "rewritten_headline": "Preserved or slightly polished headline",
+                    "rewritten_subheadline": "Preserved or slightly polished subheadline",
+                    "cta_primary": "Primary CTA text",
+                    "cta_secondary": "Secondary CTA text"
                 }}
-                Do not write introductory text.
+                Do not include extra text outside JSON.
                 """
                 
                 response = None
