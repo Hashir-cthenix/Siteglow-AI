@@ -181,7 +181,7 @@ ACADEMY_LESSONS = [
      "heatmap."),
 ]
 
-with st.expander("🎓 CRO Academy — The Psychology Powering This Tool (start here, no API key needed)", expanded=False):
+with st.expander("🎓 CRO Academy — The Psychology Powering This Tool", expanded=False):
     st.caption("SiteGlow AI isn't just a scoring tool — it's built to teach you *why* each principle below moves the needle, then shows the fix on your own copy.")
     for title, body in ACADEMY_LESSONS:
         st.markdown(
