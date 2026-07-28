@@ -238,20 +238,24 @@ def process_input(raw_text):
             return None, True, None, f"Could not scrape URL `{full_url}`. Please ensure the domain is accessible or paste pitch text directly."
         return scraped_data["text_content"], True, scraped_data, None
     
+    # Smarter parsing to prevent repetitive text when user inputs just a single line
     sentences = [s.strip() for s in re.split(r'[.\n]', text) if s.strip()]
-    h1 = sentences[0][:120] if sentences else (text[:120] if text else "Original Headline")
-    h2 = sentences[1][:160] if len(sentences) > 1 else "Original Pitch / Value Proposition"
-    body = text[:300] if text else "No original pitch copy supplied."
+    
+    if len(sentences) == 1:
+        h1 = sentences[0][:120]
+        h2 = "Original Pitch / Value Proposition"
+        body = "No additional details provided."
+    else:
+        h1 = sentences[0][:120] if sentences else (text[:120] if text else "Original Headline")
+        h2 = sentences[1][:160] if len(sentences) > 1 else "Original Pitch / Value Proposition"
+        body = text[:300] if text else "No original pitch copy supplied."
     
     structured_fallback = {
         "h1": h1,
         "h2": h2,
         "body": body
     }
-    return text, False, structured_fallback, None
-
-@st.cache_data(ttl=3600)
-def get_available_models_cached(api_key):
+    return text, False, structured_fallback, Nonedef get_available_models_cached(api_key):
     """Cache the models list to avoid redundant API hits per run."""
     genai.configure(api_key=api_key)
     try:
@@ -259,10 +263,7 @@ def get_available_models_cached(api_key):
         priority_list = [
             "models/gemini-3.1-pro",
             "models/gemini-2.5-pro",
-            "models/gemini-2.5-flash",
-            "models/gemini-2.0-flash",
-            "models/gemini-1.5-pro",
-            "models/gemini-1.5-flash"
+            "models/gemini-2.5-flash"
         ]
         available = [m for m in priority_list if m in all_models] + [m for m in all_models if m not in priority_list]
         return available if available else ["models/gemini-1.5-flash"]
@@ -425,72 +426,123 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     before_h2 = esc(before_snapshot.get("h2", "Original Subheadline"))
     before_body = esc(before_snapshot.get("body", "Original Description"))
 
+    # Switched entirely to raw custom CSS. Bypasses Tailwind CDN iframe blocks.
     return f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-        <link href="[https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap](https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap)" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet">
         <style>
-            body {{ font-family: 'Plus Jakarta Sans', sans-serif; background-color: #090d16; color: #ffffff; margin: 0; padding: 20px; }}
-            .glass-card {{ background: rgba(17, 24, 39, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }}
-            .toolbar-btn {{ transition: all 0.15s ease; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); }}
-            .toolbar-btn.active {{ background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #ffffff; border-color: transparent; }}
-            .toolbar-btn:not(.active) {{ background: rgba(255,255,255,0.05); color: #9CA3AF; }}
-            #original-{variant_id} {{ display: none; }}
-            #heatmap-{variant_id} {{ opacity: 0; pointer-events: none; transition: opacity 0.35s ease; }}
-            .heat-zone {{ position: absolute; border-radius: 18px; mix-blend-mode: screen; }}
-            .heat-label {{
-                position: absolute; font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
-                padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-                white-space: nowrap;
+            * {{ box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }}
+            body {{ background-color: #090d16; color: #ffffff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }}
+            
+            /* Modern Toolbar */
+            .toolbar {{ display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center; }}
+            .toolbar-btn {{
+                background: rgba(255,255,255,0.05); color: #9CA3AF; border: 1px solid rgba(255,255,255,0.1);
+                padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s;
             }}
-            .dot-red {{ display: inline-block; width: 8px; height: 8px; background-color: #EF4444; border-radius: 50%; margin-right: 4px; }}
-            .dot-yellow {{ display: inline-block; width: 8px; height: 8px; background-color: #FACC15; border-radius: 50%; margin-right: 4px; }}
+            .toolbar-btn:hover {{ background: rgba(255,255,255,0.1); color: #fff; }}
+            .toolbar-btn.active {{ background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #ffffff; border-color: transparent; }}
+            
+            /* Container Frame */
+            .preview-container {{ width: 100%; max-width: 900px; position: relative; }}
+            
+            /* AI Redesign View Styles */
+            .ai-view {{
+                background: rgba(17, 24, 39, 0.9); border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 24px; padding: 60px 40px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                position: relative; overflow: hidden; display: block;
+            }}
+            .ai-badge {{
+                display: inline-block; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3);
+                color: #A5B4FC; font-size: 12px; font-weight: 800; padding: 6px 16px; border-radius: 20px; 
+                text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px;
+            }}
+            .ai-h1 {{ font-size: 42px; font-weight: 900; color: #fff; margin: 0 0 24px 0; line-height: 1.15; letter-spacing: -0.02em; }}
+            .ai-h2 {{ font-size: 18px; color: #cbd5e1; margin: 0 auto 32px auto; max-width: 600px; line-height: 1.6; font-weight: 500; }}
+            .ai-buttons {{ display: flex; gap: 16px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }}
+            .btn-primary {{
+                background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; border: none;
+                padding: 14px 32px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer;
+                box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+            }}
+            .btn-secondary {{
+                background: rgba(30, 41, 59, 0.8); color: #e2e8f0; border: 1px solid #334155;
+                padding: 14px 32px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer;
+            }}
+            .ai-proof {{ font-size: 13px; color: #94a3b8; font-weight: 700; }}
+            
+            /* Original View Styles */
+            .orig-view {{
+                background: #0f172a; border: 1px solid #1e293b; border-radius: 24px; padding: 60px 40px; text-align: left;
+                display: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            }}
+            .orig-badge {{
+                display: inline-block; background: #1e293b; color: #cbd5e1; font-size: 12px; font-weight: 800;
+                padding: 6px 14px; border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px;
+            }}
+            .orig-h1 {{ font-size: 32px; font-weight: 800; color: #fff; margin: 0 0 16px 0; line-height: 1.3; }}
+            .orig-h2 {{ font-size: 20px; font-weight: 600; color: #a5b4fc; margin: 0 0 24px 0; }}
+            .orig-p {{ font-size: 16px; color: #94a3b8; margin: 0 0 32px 0; line-height: 1.6; max-width: 700px; }}
+            .orig-btn {{ background: #334155; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }}
+            
+            /* Heatmap Overlay */
+            #heatmap-{variant_id} {{ opacity: 0; pointer-events: none; transition: opacity 0.35s ease; position: absolute; inset: 0; z-index: 10; }}
+            .heat-zone {{ position: absolute; border-radius: 20px; mix-blend-mode: screen; }}
+            .heat-label {{
+                position: absolute; font-size: 12px; font-weight: 800; letter-spacing: 0.04em;
+                padding: 6px 12px; border-radius: 20px; background: rgba(0,0,0,0.8);
+                white-space: nowrap; z-index: 11; border: 1px solid rgba(255,255,255,0.1);
+            }}
+            .dot {{ display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }}
+            
+            @media (max-width: 600px) {{
+                .ai-h1 {{ font-size: 32px; }}
+                .ai-buttons {{ flex-direction: column; width: 100%; }}
+                .btn-primary, .btn-secondary {{ width: 100%; }}
+            }}
         </style>
     </head>
     <body>
-        <div class="max-w-4xl mx-auto mb-4 flex flex-wrap items-center justify-center gap-2">
-            <button id="btn-redesign-{variant_id}" class="toolbar-btn active text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','redesign')">AI Redesign</button>
-            <button id="btn-original-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','original')">Original Content</button>
-            <button id="btn-heat-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="toggleHeatmap('{variant_id}')">Attention Heatmap</button>
+        <div class="toolbar">
+            <button id="btn-redesign-{variant_id}" class="toolbar-btn active" onclick="showView('{variant_id}','redesign')">AI Redesign</button>
+            <button id="btn-original-{variant_id}" class="toolbar-btn" onclick="showView('{variant_id}','original')">Original Content</button>
+            <button id="btn-heat-{variant_id}" class="toolbar-btn" onclick="toggleHeatmap('{variant_id}')">Attention Heatmap</button>
         </div>
 
-        <div class="relative max-w-4xl mx-auto">
-            <div id="redesign-{variant_id}" class="relative glass-card rounded-3xl p-8 md:p-12 shadow-2xl overflow-hidden">
-                <div class="relative z-10 text-center">
-                    <span class="inline-flex items-center gap-2 bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-extrabold px-4 py-1.5 rounded-full mb-6 uppercase tracking-wider">
-                        {badge}
-                    </span>
-                    <h1 class="text-3xl md:text-5xl font-black tracking-tight text-white mb-6 leading-tight">{headline}</h1>
-                    <p class="text-slate-300 text-base md:text-lg mb-8 max-w-2xl mx-auto leading-relaxed font-medium">{subheadline}</p>
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-                        <button class="w-full sm:w-auto bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-extrabold text-base px-8 py-3.5 rounded-xl shadow-lg">{cta_primary}</button>
-                        <button class="w-full sm:w-auto bg-slate-800/90 text-slate-200 font-extrabold text-base px-7 py-3.5 rounded-xl border border-slate-700">{cta_secondary}</button>
-                    </div>
-                    <p class="text-xs text-slate-400 font-bold">{social_proof}</p>
+        <div class="preview-container">
+            <!-- AI REDESIGN -->
+            <div id="redesign-{variant_id}" class="ai-view">
+                <span class="ai-badge">{badge}</span>
+                <h1 class="ai-h1">{headline}</h1>
+                <h2 class="ai-h2">{subheadline}</h2>
+                <div class="ai-buttons">
+                    <button class="btn-primary">{cta_primary}</button>
+                    <button class="btn-secondary">{cta_secondary}</button>
                 </div>
+                <div class="ai-proof">{social_proof}</div>
 
-                <div id="heatmap-{variant_id}" class="absolute inset-0 z-20">
-                    <div class="heat-zone" style="top:12%; left:10%; width:80%; height:26%; background:radial-gradient(ellipse at center, rgba(239,68,68,0.6), rgba(239,68,68,0) 70%);"></div>
-                    <span class="heat-label" style="top:14%; left:50%; transform:translateX(-50%); color:#FCA5A5;">
-                        <span class="dot-red"></span> 65% Headline Focus
+                <!-- Heatmap Overlay -->
+                <div id="heatmap-{variant_id}">
+                    <div class="heat-zone" style="top:15%; left:10%; width:80%; height:30%; background:radial-gradient(ellipse at center, rgba(239,68,68,0.7), rgba(239,68,68,0) 70%);"></div>
+                    <span class="heat-label" style="top:20%; left:50%; transform:translateX(-50%); color:#FCA5A5;">
+                        <span class="dot" style="background:#EF4444;"></span> 65% Headline Focus
                     </span>
-                    <div class="heat-zone" style="top:55%; left:25%; width:50%; height:20%; background:radial-gradient(ellipse at center, rgba(250,204,21,0.55), rgba(250,204,21,0) 70%);"></div>
-                    <span class="heat-label" style="top:62%; left:50%; transform:translateX(-50%); color:#FDE68A;">
-                        <span class="dot-yellow"></span> 25% CTA Focus
+                    <div class="heat-zone" style="top:60%; left:20%; width:60%; height:20%; background:radial-gradient(ellipse at center, rgba(250,204,21,0.6), rgba(250,204,21,0) 70%);"></div>
+                    <span class="heat-label" style="top:68%; left:50%; transform:translateX(-50%); color:#FDE68A;">
+                        <span class="dot" style="background:#FACC15;"></span> 25% CTA Focus
                     </span>
                 </div>
             </div>
 
-            <div id="original-{variant_id}" class="relative bg-slate-900 border border-slate-800 rounded-3xl p-8 md:p-12 shadow-2xl">
-                <span class="inline-block bg-slate-800 text-slate-300 text-xs font-extrabold px-3.5 py-1.5 rounded-lg mb-6 uppercase tracking-wider">Original Supplied Structure</span>
-                <h1 class="text-2xl md:text-4xl font-extrabold text-white mb-4 leading-snug">{before_h1}</h1>
-                <h2 class="text-lg md:text-xl font-semibold text-indigo-300 mb-6 leading-relaxed">{before_h2}</h2>
-                <p class="text-slate-400 text-sm md:text-base mb-8 max-w-3xl leading-relaxed">{before_body}</p>
-                <div class="pt-2">
-                    <button class="bg-slate-700 text-white text-sm font-bold px-6 py-3 rounded-xl">Learn More</button>
-                </div>
+            <!-- ORIGINAL CONTENT -->
+            <div id="original-{variant_id}" class="orig-view">
+                <span class="orig-badge">Original Supplied Structure</span>
+                <h1 class="orig-h1">{before_h1}</h1>
+                <h2 class="orig-h2">{before_h2}</h2>
+                <p class="orig-p">{before_body}</p>
+                <button class="orig-btn">Learn More</button>
             </div>
         </div>
 
@@ -511,7 +563,6 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     </body>
     </html>
     """
-
 def render_single_scorecard(main):
     col1, col2 = st.columns([1, 2])
     with col1:
