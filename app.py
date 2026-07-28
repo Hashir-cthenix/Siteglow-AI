@@ -303,6 +303,8 @@ def build_prompt(processed_copy, is_url_source=False):
     4. IF THE ELEMENT IS ALREADY STRONG AND EFFECTIVE, start the flaw text exactly with: "Optimal — " followed by a brief explanation of why it works.
     5. For any actual flaw found, provide a transferable 1-sentence CRO psychological principle explaining *why* fixing it boosts conversion.
     6. Rewrite the messaging into an elite, high-converting Hero Block section (Badge, Headline, Subheadline, Primary CTA, Secondary CTA, Social Proof).
+    7. Also write a SECOND, genuinely different hero tagline (a different emotional angle — e.g. speed vs. trust vs. simplicity vs. ambition).
+       Both taglines must be equally strong and usable on their own; the second is an alternative angle, not a weaker backup.
 
     Return ONLY valid JSON matching this exact schema (no markdown formatting):
     {{
@@ -321,6 +323,8 @@ def build_prompt(processed_copy, is_url_source=False):
         "social_proof": "Trusted by 10,000+ high-growth teams",
         "rewritten_headline": "Eliminate Bottlenecks & Scale Team Execution",
         "rewritten_subheadline": "Unify communication and project workflows into one fast, intelligent dashboard.",
+        "alt_headline": "The Fastest Way Your Team Ships Without the Chaos",
+        "alt_subheadline": "A different angle on the same promise — for teams who'd rather move fast than manage more tools.",
         "cta_primary": "Start Free 14-Day Trial",
         "cta_secondary": "Watch 2-Min Demo"
     }}
@@ -366,6 +370,8 @@ def normalize_data(data):
         "social_proof": data.get("social_proof", "Loved by 5,000+ founders"),
         "headline": data.get("rewritten_headline", "Eliminate Chaos & Scale Execution"),
         "subheadline": data.get("rewritten_subheadline", "Streamline collaboration with an intelligent workspace."),
+        "alt_headline": data.get("alt_headline", "The Smarter Way To Get This Done"),
+        "alt_subheadline": data.get("alt_subheadline", "A different angle on the same promise — built for people who want results, not more busywork."),
         "cta_primary": data.get("cta_primary", "Get Started Free"),
         "cta_secondary": data.get("cta_secondary", "View Live Demo"),
     }
@@ -420,6 +426,8 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     badge = esc(fields["badge"])
     headline = esc(fields["headline"])
     subheadline = esc(fields["subheadline"])
+    alt_headline = esc(fields.get("alt_headline", fields["headline"]))
+    alt_subheadline = esc(fields.get("alt_subheadline", fields["subheadline"]))
     cta_primary = esc(fields["cta_primary"])
     cta_secondary = esc(fields["cta_secondary"])
     social_proof = esc(fields["social_proof"])
@@ -510,14 +518,21 @@ def render_hero_preview(fields, before_snapshot, variant_id):
             <button id="btn-redesign-{variant_id}" class="toolbar-btn active" onclick="showView('{variant_id}','redesign')">AI Redesign</button>
             <button id="btn-original-{variant_id}" class="toolbar-btn" onclick="showView('{variant_id}','original')">Original Content</button>
             <button id="btn-heat-{variant_id}" class="toolbar-btn" onclick="toggleHeatmap('{variant_id}')">Attention Heatmap</button>
+            <button id="btn-tagline-{variant_id}" class="toolbar-btn" onclick="toggleTagline('{variant_id}')">🔄 Try Other Pitch</button>
         </div>
 
         <div class="preview-container">
             <!-- AI REDESIGN -->
             <div id="redesign-{variant_id}" class="ai-view">
                 <span class="ai-badge">{badge}</span>
-                <h1 class="ai-h1">{headline}</h1>
-                <h2 class="ai-h2">{subheadline}</h2>
+                <div id="tagline-a-{variant_id}" class="tagline-variant">
+                    <h1 class="ai-h1">{headline}</h1>
+                    <h2 class="ai-h2">{subheadline}</h2>
+                </div>
+                <div id="tagline-b-{variant_id}" class="tagline-variant" style="display:none;">
+                    <h1 class="ai-h1">{alt_headline}</h1>
+                    <h2 class="ai-h2">{alt_subheadline}</h2>
+                </div>
                 <div class="ai-buttons">
                     <button class="btn-primary">{cta_primary}</button>
                     <button class="btn-secondary">{cta_secondary}</button>
@@ -560,6 +575,15 @@ def render_hero_preview(fields, before_snapshot, variant_id):
                 hm.style.opacity = isOn ? '0' : '1';
                 document.getElementById('btn-heat-' + id).classList.toggle('active', !isOn);
             }}
+            function toggleTagline(id) {{
+                var a = document.getElementById('tagline-a-' + id);
+                var b = document.getElementById('tagline-b-' + id);
+                var btn = document.getElementById('btn-tagline-' + id);
+                var showingA = a.style.display !== 'none';
+                a.style.display = showingA ? 'none' : 'block';
+                b.style.display = showingA ? 'block' : 'none';
+                btn.classList.toggle('active', showingA);
+            }}
         </script>
     </body>
     </html>
@@ -573,26 +597,30 @@ def render_single_scorecard(main):
         st.metric("Health Score", f"{main['orig_score']} / 100")
         st.caption(f"Engine Model: `{main['used_model']}`")
         st.write("---")
-        st.write(f"**Message Clarity:** {main['clarity']}/100")
+        st.write(f"**How Easy Is It To Understand?** {main['clarity']}/100")
         st.progress(main["clarity"] / 100)
-        st.write(f"**Value/Benefit Focus:** {main['benefit']}/100")
+        st.write(f"**How Clear Is The Benefit?** {main['benefit']}/100")
         st.progress(main["benefit"] / 100)
-        st.write(f"**CTA Urgency:** {main['urgency']}/100")
+        st.write(f"**How Much Does It Make People Act Now?** {main['urgency']}/100")
         st.progress(main["urgency"] / 100)
-        st.write(f"**Friction Level:** {main['friction']}/100")
+        st.write(f"**How Easy To Take Action? (lower friction is better)** {main['friction']}/100")
         st.progress(main["friction"] / 100)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">Conversion Diagnosis & Lessons</div>', unsafe_allow_html=True)
-        st.markdown(f"#### {get_status_badge(main['headline_flaw'])} Headline Structure", unsafe_allow_html=True)
+        st.markdown('<div class="card-title">What We Found — And Why It Matters</div>', unsafe_allow_html=True)
+        st.markdown(f"#### {get_status_badge(main['headline_flaw'])} Your Headline (First Impression)", unsafe_allow_html=True)
         st.write(main["headline_flaw"])
-        st.markdown(f'<div class="principle-line"><b>Principle:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="principle-line"><b>Why it matters:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
         st.write("---")
-        st.markdown(f"#### {get_status_badge(main['value_flaw'])} Value Proposition", unsafe_allow_html=True)
+        st.markdown(f"#### {get_status_badge(main['value_flaw'])} Your Offer (What They Get)", unsafe_allow_html=True)
         st.write(main["value_flaw"])
-        st.markdown(f'<div class="principle-line"><b>Principle:</b> {esc(main["value_lesson"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="principle-line"><b>Why it matters:</b> {esc(main["value_lesson"])}</div>', unsafe_allow_html=True)
+        st.write("---")
+        st.markdown(f"#### {get_status_badge(main['cta_flaw'])} Your Call-to-Action (The Button)", unsafe_allow_html=True)
+        st.write(main["cta_flaw"])
+        st.markdown(f'<div class="principle-line"><b>Why it matters:</b> {esc(main["cta_lesson"])}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
 def render_battle_scorecard(main, comp):
