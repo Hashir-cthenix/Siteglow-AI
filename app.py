@@ -266,9 +266,6 @@ def get_available_models_cached(api_key):
             "models/gemini-3.1-pro",
             "models/gemini-2.5-pro",
             "models/gemini-2.5-flash",
-            "models/gemini-2.0-flash",
-            "models/gemini-1.5-pro",
-            "models/gemini-1.5-flash"
         ]
         available = [m for m in priority_list if m in all_models] + [m for m in all_models if m not in priority_list]
         return available if available else ["models/gemini-1.5-flash"]
