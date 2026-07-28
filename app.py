@@ -6,133 +6,143 @@ import html as html_lib
 import requests
 from bs4 import BeautifulSoup
 import time
+import concurrent.futures
 
 # App Layout Configuration
 st.set_page_config(page_title="SiteGlow AI — Conversion & Design Engine", page_icon="⚡", layout="wide")
 
-# Modern SaaS Styling with Custom CSS
+# Modern SaaS Styling with High Contrast & Bold Typography
 st.markdown("""
 <style>
-    .stApp { background-color: #0B0F17; color: #E2E8F0; }
+    .stApp { background-color: #090D16; color: #E2E8F0; }
     
+    /* Header Typography */
     .brand-badge {
         display: inline-block;
-        background: rgba(99, 102, 241, 0.12);
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        color: #818CF8;
-        padding: 4px 14px;
+        background: rgba(99, 102, 241, 0.15);
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        color: #A5B4FC;
+        padding: 6px 16px;
         border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
+        font-size: 0.85rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
     }
-    .main-title { font-size: 2.6rem; font-weight: 900; color: #FFFFFF; letter-spacing: -0.02em; margin-bottom: 4px; }
-    .sub-title { font-size: 1.05rem; color: #94A3B8; margin-bottom: 28px; font-weight: 400; }
+    .main-title { font-size: 2.8rem; font-weight: 900; color: #FFFFFF; letter-spacing: -0.03em; margin-bottom: 6px; }
+    .sub-title { font-size: 1.1rem; color: #94A3B8; margin-bottom: 28px; font-weight: 500; line-height: 1.5; }
     
+    /* Input Styling */
     .stTextArea textarea {
-        background-color: #131927 !important;
-        border: 1px solid #1E293B !important;
-        color: #F8FAFC !important;
+        background-color: #111827 !important;
+        border: 1px solid #1F2937 !important;
+        color: #F9FAFB !important;
         border-radius: 12px !important;
-        font-size: 0.95rem !important;
+        font-size: 1rem !important;
+        font-weight: 500 !important;
     }
-    .stTextArea textarea:focus { border-color: #6366F1 !important; box-shadow: 0 0 0 1px #6366F1 !important; }
+    .stTextArea textarea:focus { border-color: #6366F1 !important; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important; }
     
+    /* Button Styling */
     .stButton>button {
         width: 100%;
-        border-radius: 10px;
-        font-weight: 700;
-        font-size: 1rem;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 1.05rem;
         background: linear-gradient(135deg, #4F46E5, #7C3AED);
         color: white;
         border: none;
-        height: 3.2rem;
-        box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
+        height: 3.4rem;
+        box-shadow: 0 4px 20px rgba(79, 70, 229, 0.35);
         transition: all 0.2s ease;
     }
     .stButton>button:hover {
         background: linear-gradient(135deg, #4338CA, #6D28D9);
-        box-shadow: 0 6px 24px rgba(79, 70, 229, 0.45);
+        box-shadow: 0 6px 24px rgba(79, 70, 229, 0.5);
         transform: translateY(-1px);
     }
     
-    div[data-testid="stMetricValue"] { font-size: 2rem !important; font-weight: 800 !important; color: #6366F1 !important; }
+    /* Cards & Containers */
+    div[data-testid="stMetricValue"] { font-size: 2.2rem !important; font-weight: 900 !important; color: #818CF8 !important; }
+    
     .card-box {
-        background: #131927;
-        border: 1px solid #1E293B;
+        background: #111827;
+        border: 1px solid #1F2937;
         border-radius: 16px;
-        padding: 20px;
-        margin-bottom: 16px;
+        padding: 22px;
+        margin-bottom: 18px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
-    .tag-pill {
-        display: inline-block;
-        background: #1E293B;
-        color: #CBD5E1;
-        padding: 2px 10px;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: 600;
+    .card-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #F3F4F6;
+        margin-bottom: 14px;
+        border-bottom: 1px solid #1F2937;
+        padding-bottom: 8px;
     }
     
     .winner-badge {
         display: inline-block;
-        background: linear-gradient(135deg, #10B981, #34D399);
-        color: #052e1f;
-        padding: 6px 16px;
+        background: linear-gradient(135deg, #059669, #10B981);
+        color: #FFFFFF;
+        padding: 8px 18px;
         border-radius: 20px;
-        font-size: 0.95rem;
+        font-size: 1rem;
         font-weight: 800;
     }
     .loser-badge {
         display: inline-block;
-        background: rgba(248, 113, 113, 0.12);
-        border: 1px solid rgba(248, 113, 113, 0.3);
-        color: #F87171;
-        padding: 6px 16px;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #FCA5A5;
+        padding: 8px 18px;
         border-radius: 20px;
-        font-size: 0.95rem;
+        font-size: 1rem;
         font-weight: 800;
     }
     .site-label-blue {
         display: inline-block;
-        background: rgba(59, 130, 246, 0.12);
-        border: 1px solid rgba(59, 130, 246, 0.3);
-        color: #60A5FA;
-        padding: 3px 12px;
+        background: rgba(59, 130, 246, 0.15);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        color: #93C5FD;
+        padding: 4px 14px;
         border-radius: 8px;
-        font-size: 0.85rem;
-        font-weight: 700;
+        font-size: 0.9rem;
+        font-weight: 800;
+        margin-bottom: 8px;
     }
     .site-label-red {
         display: inline-block;
-        background: rgba(248, 113, 113, 0.12);
-        border: 1px solid rgba(248, 113, 113, 0.3);
-        color: #F87171;
-        padding: 3px 12px;
+        background: rgba(239, 68, 68, 0.15);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #FCA5A5;
+        padding: 4px 14px;
         border-radius: 8px;
-        font-size: 0.85rem;
-        font-weight: 700;
+        font-size: 0.9rem;
+        font-weight: 800;
+        margin-bottom: 8px;
     }
     .lesson-card {
-        background: #131927;
-        border: 1px solid #1E293B;
-        border-left: 3px solid #6366F1;
-        border-radius: 10px;
-        padding: 16px 18px;
-        margin-bottom: 12px;
+        background: #111827;
+        border: 1px solid #1F2937;
+        border-left: 4px solid #6366F1;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 14px;
     }
-    .lesson-title { color: #A5B4FC; font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; }
-    .lesson-body { color: #CBD5E1; font-size: 0.88rem; line-height: 1.5; }
+    .lesson-title { color: #A5B4FC; font-weight: 800; font-size: 1rem; margin-bottom: 4px; }
+    .lesson-body { color: #D1D5DB; font-size: 0.92rem; line-height: 1.5; font-weight: 400; }
     .principle-line {
-        background: rgba(99, 102, 241, 0.08);
-        border: 1px dashed rgba(99, 102, 241, 0.35);
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px dashed rgba(99, 102, 241, 0.4);
         border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 0.85rem;
-        color: #C7D2FE;
-        margin-top: 6px;
+        padding: 10px 14px;
+        font-size: 0.88rem;
+        color: #E0E7FF;
+        margin-top: 8px;
+        font-weight: 500;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -141,30 +151,22 @@ st.markdown("""
 st.markdown('<span class="brand-badge">⚡ AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
 st.markdown('<div class="main-title">SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="sub-title">Diagnoses real websites, rewrites them into high-converting heroes, and teaches '
-    'the conversion psychology behind every fix — with Competitor Battle Mode & a live Attention-Heatmap Lab.</div>',
+    '<div class="sub-title">Diagnoses website copy, rewrites heroes into high-converting layouts, and teaches '
+    'conversion psychology — powered by Parallel Competitor Battles & Heatmap Labs.</div>',
     unsafe_allow_html=True
 )
 
 # CRO Academy
 ACADEMY_LESSONS = [
-    ("🔍 Clarity", "Visitors decide whether to keep reading within seconds. If a headline describes a "
-     "feature instead of the outcome a person gets, the brain has to do extra translation work — and most "
-     "people simply leave instead of doing it."),
-    ("🎁 Benefit Framing", "People don't buy tools, they buy outcomes: time saved, stress removed, money "
-     "earned. Copy that lists specs reads as a catalog; copy that names the transformation reads as a reason "
-     "to act."),
-    ("⏳ Urgency & Scarcity", "Decision-making research shows people act faster when a moment feels limited or timely. "
-     "A generic 'Submit' button asks for effort with nothing in return; a specific, time-bound CTA gives a reason to click now."),
-    ("🧠 Cognitive Friction", "Every extra decision, unclear label, or vague next step adds mental load. Lower "
-     "friction doesn't mean fewer words — it means the next step is obvious at a glance."),
-    ("👁️ Visual Attention (F-Pattern)", "Eye-tracking studies from researchers like Nielsen Norman Group have "
-     "repeatedly found that visitors scan pages in predictable patterns, spending most of their attention on "
-     "the headline and hero area before decaying sharply."),
+    ("🔍 Clarity", "Visitors decide whether to keep reading within seconds. If a headline describes a feature instead of the outcome, visitors leave rather than translate it."),
+    ("🎁 Benefit Framing", "People buy outcomes: time saved, stress removed, revenue earned. Copy listing features reads like a catalog; copy naming transformation drives action."),
+    ("⏳ Urgency & Scarcity", "People act faster when moments feel timely. A generic 'Submit' button asks for effort; a specific, value-bound CTA gives a reason to click now."),
+    ("🧠 Cognitive Friction", "Every extra decision or vague step adds mental load. Lower friction makes the primary next step obvious at a single glance."),
+    ("👁️ Visual Attention (F-Pattern)", "Visitors scan pages in predictable patterns, spending most attention on headlines and hero elements before decaying sharply."),
 ]
 
-with st.expander("🎓 CRO Academy — The Psychology Powering This Tool", expanded=False):
-    st.caption("SiteGlow AI isn't just a scoring tool — it's built to teach you *why* each principle moves the needle.")
+with st.expander("🎓 CRO Academy — Conversion Psychology Principles", expanded=False):
+    st.caption("Learn the principles powering SiteGlow AI's scoring engine:")
     for title, body in ACADEMY_LESSONS:
         st.markdown(
             f'<div class="lesson-card"><div class="lesson-title">{title}</div>'
@@ -172,12 +174,26 @@ with st.expander("🎓 CRO Academy — The Psychology Powering This Tool", expan
             unsafe_allow_html=True
         )
 
-# Helper Functions
+# URL Parser & Scraper Logic
+def is_url_pattern(text):
+    text = text.strip()
+    if ' ' in text or '\n' in text:
+        return False
+    if text.startswith("http://") or text.startswith("https://"):
+        return True
+    domain_pattern = r'^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:/.*)?$'
+    return bool(re.match(domain_pattern, text))
+
+def normalize_url(text):
+    text = text.strip()
+    if not (text.startswith("http://") or text.startswith("https://")):
+        return f"https://{text}"
+    return text
+
 def extract_website_content(url):
-    """Scrapes content from URL cleanly, returning None if scrape fails."""
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        response = requests.get(url, headers=headers, timeout=7)
+        response = requests.get(url, headers=headers, timeout=6)
         if response.status_code != 200:
             return None
         
@@ -192,33 +208,33 @@ def extract_website_content(url):
         paragraphs = [p.get_text().strip() for p in soup.find_all('p') if p.get_text().strip()][:3]
 
         text_content = f"Page Title: {title}\nMeta Description: {meta_desc}\nHeadings: {' | '.join(headings[:4])}\nSample Copy: {' '.join(paragraphs)}"[:1500]
-        return text_content if len(text_content) > 50 else None
+        return text_content if len(text_content) > 30 else None
     except Exception:
         return None
 
 def process_input(raw_text):
-    """Returns (processed_copy, is_url, scrape_failed)"""
+    """Returns (processed_text, is_url, error_message)"""
     text = (raw_text or "").strip()
-    if text.startswith("http://") or text.startswith("https://"):
-        st.info(f"🌐 Fetching live website content from `{text}`...")
-        scraped = extract_website_content(text)
+    if is_url_pattern(text):
+        full_url = normalize_url(text)
+        scraped = extract_website_content(full_url)
         if scraped is None:
-            return text, True, True  # Fallback to URL as text string, flag failure
-        return scraped, True, False
-    return text, False, False
+            return None, True, f"Could not reach or scrape the URL `{full_url}`. Please verify the domain is reachable or paste product pitch text directly."
+        return scraped, True, None
+    return text, False, None
 
 def build_before_snapshot(raw_input, processed_copy, is_url):
     if is_url:
-        title_match = re.search(r'Page Title:\s*(.*)', processed_copy)
-        meta_match = re.search(r'Meta Description:\s*(.*)', processed_copy)
-        headline = title_match.group(1).strip() if title_match and title_match.group(1).strip() else "Your Original Headline"
-        body = meta_match.group(1).strip() if meta_match and meta_match.group(1).strip() else processed_copy[:220]
+        title_match = re.search(r'Page Title:\s*(.*)', processed_copy or "")
+        meta_match = re.search(r'Meta Description:\s*(.*)', processed_copy or "")
+        headline = title_match.group(1).strip() if title_match and title_match.group(1).strip() else "Original Headline"
+        body = meta_match.group(1).strip() if meta_match and meta_match.group(1).strip() else (processed_copy[:220] if processed_copy else "")
     else:
         sentences = [s.strip() for s in re.split(r'[.\n]', raw_input) if s.strip()]
-        headline = sentences[0][:120] if sentences else (raw_input[:120] if raw_input else "Your Original Headline")
+        headline = sentences[0][:120] if sentences else (raw_input[:120] if raw_input else "Original Headline")
         body = raw_input[:280] if raw_input else "No original copy supplied."
 
-    return {"headline": headline or "Your Original Headline", "body": body or "No original copy supplied."}
+    return {"headline": headline or "Original Headline", "body": body or "No original copy supplied."}
 
 def esc(value):
     return html_lib.escape(str(value), quote=True)
@@ -274,10 +290,8 @@ def build_prompt(processed_copy):
 
 def run_gemini_analysis(processed_copy, available_models):
     prompt = build_prompt(processed_copy)
-    
     for model_name in available_models:
         try:
-            # Force Native JSON output from Gemini
             model = genai.GenerativeModel(
                 model_name,
                 generation_config={"response_mime_type": "application/json"}
@@ -287,9 +301,8 @@ def run_gemini_analysis(processed_copy, available_models):
                 data = json.loads(response.text)
                 return data, model_name
         except Exception:
-            time.sleep(1) # Brief pause on retry
+            time.sleep(0.5)
             continue
-
     return None, None
 
 def normalize_data(data):
@@ -318,11 +331,31 @@ def normalize_data(data):
         "cta_secondary": data.get("cta_secondary", "View Live Demo"),
     }
 
+def analyze_single_site_task(raw_input, available_models):
+    processed_text, is_url, error_msg = process_input(raw_input)
+    if error_msg:
+        return {"status": "error", "error": error_msg}
+
+    before_snap = build_before_snapshot(raw_input, processed_text, is_url)
+    raw_data, used_model = run_gemini_analysis(processed_text, available_models)
+
+    if raw_data is None:
+        return {"status": "error", "error": "Gemini API failed to generate analysis. Please verify your API key."}
+
+    norm_data = normalize_data(raw_data)
+    norm_data["used_model"] = used_model
+    return {
+        "status": "success",
+        "data": norm_data,
+        "before": before_snap,
+        "is_url": is_url
+    }
+
 def get_status_badge(flaw_text):
     clean = flaw_text.strip().lower()
     if clean.startswith("none") or "strong" in clean or "excellent" in clean:
-        return "✅ <span style='color:#34D399; font-weight:700;'>Optimal</span>"
-    return "❌ <span style='color:#F87171; font-weight:700;'>Flaw Detected</span>"
+        return "✅ <span style='color:#34D399; font-weight:800;'>Optimal</span>"
+    return "❌ <span style='color:#F87171; font-weight:800;'>Flaw Detected</span>"
 
 def compute_winner(main, comp):
     main_score = main["orig_score"]
@@ -361,58 +394,58 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     <html>
     <head>
         <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet">
         <style>
-            body {{ font-family: 'Plus Jakarta Sans', sans-serif; background-color: #090d16; color: #ffffff; margin: 0; padding: 24px; }}
-            .glass-card {{ background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }}
-            .toolbar-btn {{ transition: all 0.15s ease; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); }}
+            body {{ font-family: 'Plus Jakarta Sans', sans-serif; background-color: #090d16; color: #ffffff; margin: 0; padding: 20px; }}
+            .glass-card {{ background: rgba(17, 24, 39, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }}
+            .toolbar-btn {{ transition: all 0.15s ease; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); }}
             .toolbar-btn.active {{ background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #ffffff; border-color: transparent; }}
-            .toolbar-btn:not(.active) {{ background: rgba(255,255,255,0.05); color: #94A3B8; }}
+            .toolbar-btn:not(.active) {{ background: rgba(255,255,255,0.05); color: #9CA3AF; }}
             #original-{variant_id} {{ display: none; }}
             #heatmap-{variant_id} {{ opacity: 0; pointer-events: none; transition: opacity 0.35s ease; }}
             .heat-zone {{ position: absolute; border-radius: 18px; mix-blend-mode: screen; }}
             .heat-label {{
-                position: absolute; font-size: 10px; font-weight: 800; letter-spacing: 0.04em;
-                padding: 3px 9px; border-radius: 999px; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+                position: absolute; font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
+                padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
                 white-space: nowrap;
             }}
         </style>
     </head>
     <body>
         <div class="max-w-4xl mx-auto mb-4 flex flex-wrap items-center justify-center gap-2">
-            <button id="btn-redesign-{variant_id}" class="toolbar-btn active text-xs font-bold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','redesign')">✨ AI Redesign</button>
-            <button id="btn-original-{variant_id}" class="toolbar-btn text-xs font-bold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','original')">📝 Original</button>
-            <button id="btn-heat-{variant_id}" class="toolbar-btn text-xs font-bold px-4 py-2 rounded-lg" onclick="toggleHeatmap('{variant_id}')">🔥 Attention Heatmap</button>
+            <button id="btn-redesign-{variant_id}" class="toolbar-btn active text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','redesign')">✨ AI Redesign</button>
+            <button id="btn-original-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','original')">📝 Original</button>
+            <button id="btn-heat-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="toggleHeatmap('{variant_id}')">🔥 Attention Heatmap</button>
         </div>
 
         <div class="relative max-w-4xl mx-auto">
-            <div id="redesign-{variant_id}" class="relative glass-card rounded-3xl p-10 md:p-14 shadow-2xl overflow-hidden">
+            <div id="redesign-{variant_id}" class="relative glass-card rounded-3xl p-8 md:p-12 shadow-2xl overflow-hidden">
                 <div class="relative z-10 text-center">
-                    <span class="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 text-xs font-bold px-4 py-1.5 rounded-full mb-6 uppercase">
+                    <span class="inline-flex items-center gap-2 bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-extrabold px-4 py-1.5 rounded-full mb-6 uppercase tracking-wider">
                         ✨ {badge}
                     </span>
-                    <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">{headline}</h1>
-                    <p class="text-slate-300 text-base md:text-xl mb-8 max-w-2xl mx-auto leading-relaxed">{subheadline}</p>
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mb-10">
-                        <button class="w-full sm:w-auto bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold px-9 py-4 rounded-xl shadow-lg">{cta_primary}</button>
-                        <button class="w-full sm:w-auto bg-slate-800/80 text-slate-200 font-bold px-8 py-4 rounded-xl border border-slate-700">{cta_secondary}</button>
+                    <h1 class="text-3xl md:text-5xl font-black tracking-tight text-white mb-6 leading-tight">{headline}</h1>
+                    <p class="text-slate-300 text-base md:text-lg mb-8 max-w-2xl mx-auto leading-relaxed font-medium">{subheadline}</p>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
+                        <button class="w-full sm:w-auto bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-extrabold text-base px-8 py-3.5 rounded-xl shadow-lg">{cta_primary}</button>
+                        <button class="w-full sm:w-auto bg-slate-800/90 text-slate-200 font-extrabold text-base px-7 py-3.5 rounded-xl border border-slate-700">{cta_secondary}</button>
                     </div>
-                    <p class="text-xs text-slate-400 font-medium">{social_proof}</p>
+                    <p class="text-xs text-slate-400 font-bold">{social_proof}</p>
                 </div>
 
                 <div id="heatmap-{variant_id}" class="absolute inset-0 z-20">
-                    <div class="heat-zone" style="top:13%; left:12%; width:76%; height:23%; background:radial-gradient(ellipse at center, rgba(239,68,68,0.55), rgba(239,68,68,0) 70%);"></div>
-                    <span class="heat-label" style="top:15%; left:50%; transform:translateX(-50%); color:#FCA5A5;">🔴 65% Headline Focus</span>
-                    <div class="heat-zone" style="top:57%; left:28%; width:44%; height:17%; background:radial-gradient(ellipse at center, rgba(250,204,21,0.5), rgba(250,204,21,0) 70%);"></div>
-                    <span class="heat-label" style="top:63%; left:50%; transform:translateX(-50%); color:#FDE68A;">🟡 25% CTA Focus</span>
+                    <div class="heat-zone" style="top:12%; left:10%; width:80%; height:26%; background:radial-gradient(ellipse at center, rgba(239,68,68,0.6), rgba(239,68,68,0) 70%);"></div>
+                    <span class="heat-label" style="top:14%; left:50%; transform:translateX(-50%); color:#FCA5A5;">🔴 65% Headline Focus</span>
+                    <div class="heat-zone" style="top:55%; left:25%; width:50%; height:20%; background:radial-gradient(ellipse at center, rgba(250,204,21,0.55), rgba(250,204,21,0) 70%);"></div>
+                    <span class="heat-label" style="top:62%; left:50%; transform:translateX(-50%); color:#FDE68A;">🟡 25% CTA Focus</span>
                 </div>
             </div>
 
-            <div id="original-{variant_id}" class="relative bg-white rounded-2xl p-10 md:p-14 shadow-2xl text-center" style="font-family: Arial, sans-serif;">
-                <span class="inline-block bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1 rounded mb-4 uppercase">Before — Unoptimized</span>
-                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">{before_headline}</h1>
-                <p class="text-gray-600 text-sm md:text-base mb-8 max-w-2xl mx-auto">{before_body}</p>
-                <button class="bg-gray-700 text-white text-sm font-medium px-6 py-2 rounded">Submit</button>
+            <div id="original-{variant_id}" class="relative bg-white rounded-2xl p-8 md:p-12 shadow-2xl text-center" style="font-family: Arial, sans-serif;">
+                <span class="inline-block bg-gray-100 text-gray-600 text-xs font-bold px-3 py-1 rounded mb-4 uppercase">Before — Original Input</span>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-4">{before_headline}</h1>
+                <p class="text-gray-600 text-sm md:text-base mb-6 max-w-2xl mx-auto">{before_body}</p>
+                <button class="bg-gray-800 text-white text-sm font-bold px-6 py-2.5 rounded">Submit</button>
             </div>
         </div>
 
@@ -434,12 +467,13 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     </html>
     """
 
-# Render Scorecards
+# Render Scorecard Functions
 def render_single_scorecard(main):
     col1, col2 = st.columns([1, 2])
     with col1:
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.metric("Conversion Health Score", f"{main['orig_score']} / 100")
+        st.markdown('<div class="card-title"> Conversion Health</div>', unsafe_allow_html=True)
+        st.metric("Health Score", f"{main['orig_score']} / 100")
         st.caption(f"Engine Model: `{main['used_model']}`")
         st.write("---")
         st.write(f"**Message Clarity:** {main['clarity']}/100")
@@ -454,7 +488,7 @@ def render_single_scorecard(main):
 
     with col2:
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.subheader("🔍 Breakdown & Flaw Diagnosis")
+        st.markdown('<div class="card-title">🔍 Conversion Diagnosis & Lessons</div>', unsafe_allow_html=True)
         st.markdown(f"#### {get_status_badge(main['headline_flaw'])} Headline Structure", unsafe_allow_html=True)
         st.write(main["headline_flaw"])
         st.markdown(f'<div class="principle-line">🎓 <b>Principle:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
@@ -479,13 +513,13 @@ def render_battle_scorecard(main, comp):
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="card-box">', unsafe_allow_html=True)
-    st.subheader("🏆 Winner & Gap Analysis")
+    st.markdown('<div class="card-title">🏆 Competitor Battle Outcome</div>', unsafe_allow_html=True)
     if winner == "yours":
-        st.markdown(f'<span class="winner-badge">🏆 You win by {gap} points</span>', unsafe_allow_html=True)
+        st.markdown(f'<span class="winner-badge">🏆 Your site wins by {gap} points</span>', unsafe_allow_html=True)
     elif winner == "competitor":
         st.markdown(f'<span class="loser-badge">⚠️ Competitor leads by {gap} points</span>', unsafe_allow_html=True)
     else:
-        st.markdown('<span class="tag-pill">🤝 Dead heat — scores are tied</span>', unsafe_allow_html=True)
+        st.markdown('<span class="brand-badge">🤝 Dead heat — scores are tied</span>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Sidebar Setup
@@ -501,58 +535,61 @@ battle_mode = st.toggle("🥊 Enable Competitor CRO Battle Mode", value=False)
 if battle_mode:
     col_in1, col_in2 = st.columns(2)
     with col_in1:
-        user_input = st.text_area("🟦 Your website or pitch:", height=140, key="user_input_battle")
+        user_input = st.text_area("🟦 Your website URL or pitch text:", height=140, key="user_input_battle", placeholder="e.g. basecamp.com or product pitch text")
     with col_in2:
-        competitor_input = st.text_area("🟥 Competitor website or pitch:", height=140, key="competitor_input_battle")
+        competitor_input = st.text_area("🟥 Competitor website URL or pitch text:", height=140, key="competitor_input_battle", placeholder="e.g. ghost.org or competitor pitch text")
 else:
-    user_input = st.text_area("Paste product pitch OR website URL below:", height=120, key="user_input_single")
+    user_input = st.text_area("Paste product pitch OR enter website domain (e.g. basecamp.com, ghost.org):", height=120, key="user_input_single")
     competitor_input = ""
 
 analyze_button = st.button("🚀 Analyze & Auto-Redesign Live", type="primary")
 
-# Execute Analysis & Save in Session State
+# Execute Parallel Analysis & Save in Session State
 if analyze_button:
     if not api_key:
         st.error("Please enter your Gemini API Key in the sidebar.")
     elif battle_mode and (not user_input.strip() or not competitor_input.strip()):
-        st.warning("Please fill in both fields for Battle Mode.")
+        st.warning("Please fill in both input fields for Battle Mode.")
     elif not battle_mode and not user_input.strip():
         st.warning("Please enter text or a URL.")
     else:
-        with st.spinner("Analyzing psychological hooks and generating high-converting UI..."):
+        with st.spinner("Executing parallel web scrapers and Gemini CRO analysis..."):
             genai.configure(api_key=api_key)
             available_models = get_available_models()
 
-            processed_main, is_url_main, scrape_failed_main = process_input(user_input)
-            if scrape_failed_main:
-                st.warning("⚠️ Could not scrape URL automatically (site blocked bot). Analyzing URL string directly.")
+            if battle_mode:
+                # Parallel execution for Battle Mode
+                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+                    future_main = executor.submit(analyze_single_site_task, user_input, available_models)
+                    future_comp = executor.submit(analyze_single_site_task, competitor_input, available_models)
+                    
+                    res_main = future_main.result()
+                    res_comp = future_comp.result()
 
-            raw_data_main, model_main = run_gemini_analysis(processed_main, available_models)
+                if res_main["status"] == "error":
+                    st.error(f"❌ Your Site Error: {res_main['error']}")
+                elif res_comp["status"] == "error":
+                    st.error(f"❌ Competitor Site Error: {res_comp['error']}")
+                else:
+                    st.session_state['has_data'] = True
+                    st.session_state['main'] = res_main["data"]
+                    st.session_state['before_main'] = res_main["before"]
+                    st.session_state['comp'] = res_comp["data"]
+                    st.session_state['before_comp'] = res_comp["before"]
+                    st.session_state['battle_mode'] = True
 
-            if raw_data_main is None:
-                st.error("❌ Failed to fetch AI response. Please check API key/quota.")
             else:
-                main = normalize_data(raw_data_main)
-                main["used_model"] = model_main
-                before_main = build_before_snapshot(user_input, processed_main, is_url_main)
-
-                comp = None
-                before_comp = None
-                if battle_mode:
-                    processed_comp, is_url_comp, scrape_failed_comp = process_input(competitor_input)
-                    raw_data_comp, model_comp = run_gemini_analysis(processed_comp, available_models)
-                    if raw_data_comp:
-                        comp = normalize_data(raw_data_comp)
-                        comp["used_model"] = model_comp
-                        before_comp = build_before_snapshot(competitor_input, processed_comp, is_url_comp)
-
-                # Save into Session State to prevent loss on reruns
-                st.session_state['has_data'] = True
-                st.session_state['main'] = main
-                st.session_state['before_main'] = before_main
-                st.session_state['comp'] = comp
-                st.session_state['before_comp'] = before_comp
-                st.session_state['battle_mode'] = battle_mode
+                # Single site execution
+                res_main = analyze_single_site_task(user_input, available_models)
+                if res_main["status"] == "error":
+                    st.error(f"❌ Error: {res_main['error']}")
+                else:
+                    st.session_state['has_data'] = True
+                    st.session_state['main'] = res_main["data"]
+                    st.session_state['before_main'] = res_main["before"]
+                    st.session_state['comp'] = None
+                    st.session_state['before_comp'] = None
+                    st.session_state['battle_mode'] = False
 
 # Render Results from Session State
 if st.session_state.get('has_data', False):
@@ -575,13 +612,28 @@ if st.session_state.get('has_data', False):
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown('<span class="site-label-blue">🟦 YOUR SITE</span>', unsafe_allow_html=True)
-                st.components.v1.html(render_hero_preview(main, before_main, "main"), height=700, scrolling=True)
+                st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
             with c2:
                 st.markdown('<span class="site-label-red">🟥 COMPETITOR</span>', unsafe_allow_html=True)
-                st.components.v1.html(render_hero_preview(comp, before_comp, "comp"), height=700, scrolling=True)
+                st.components.v1.html(render_hero_preview(comp, before_comp, "comp"), height=680, scrolling=True)
         else:
-            st.components.v1.html(render_hero_preview(main, before_main, "main"), height=700, scrolling=True)
+            st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
 
     with tab3:
         st.subheader("💻 Ready-to-Use Tailwind HTML")
-        st.code(render_hero_preview(main, before_main, "main"), language="html")
+        if is_battle and comp:
+            sub1, sub2 = st.tabs(["🟦 Your Site HTML", "🟥 Competitor Site HTML"])
+            with sub1:
+                html_main = render_hero_preview(main, before_main, "main")
+                st.caption("Hero section HTML code for **Your Site**:")
+                st.code(html_main, language="html")
+                st.download_button("📥 Download Your Site HTML", data=html_main, file_name="your_site_hero.html", mime="text/html")
+            with sub2:
+                html_comp = render_hero_preview(comp, before_comp, "comp")
+                st.caption("Hero section HTML code for **Competitor Site**:")
+                st.code(html_comp, language="html")
+                st.download_button("📥 Download Competitor HTML", data=html_comp, file_name="competitor_hero.html", mime="text/html")
+        else:
+            html_main = render_hero_preview(main, before_main, "main")
+            st.code(html_main, language="html")
+            st.download_button("📥 Download Hero HTML", data=html_main, file_name="hero_redesign.html", mime="text/html")
