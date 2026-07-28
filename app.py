@@ -144,25 +144,22 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown('<span class="brand-badge">⚡ AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
+st.markdown('<span class="brand-badge">⚡ AI Copy & Pitch Growth Advisor</span>', unsafe_allow_html=True)
 st.markdown('<div class="main-title">SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="sub-title">Diagnoses website copy and pitch text, rewrites hero sections into high-converting layouts, and teaches '
-    'conversion psychology — powered by Parallel Competitor Battles & Heatmap Labs.</div>',
+    'customer persuasion psychology — powered by Parallel Competitor Battles & Heatmap Labs.</div>',
     unsafe_allow_html=True
 )
 
-# CRO Academy Lessons
+# Academy Lessons
 ACADEMY_LESSONS = [
-    ("Clarity", "Visitors decide whether to stay within 3 seconds. If a headline describes a feature instead of the desired outcome, visitors leave."),
-    ("Benefit Framing", "People buy transformation, not features: time saved, friction removed, revenue earned. Feature copy reads like a catalog; outcome copy converts."),
-    ("Urgency & Scarcity", "Action drops without momentum. A generic 'Submit' button creates cognitive drag; a benefit-tied, action-oriented CTA drives high conversion."),
-    ("Cognitive Friction", "Every extra step or ambiguous sentence increases drop-off. Minimizing mental resistance keeps users focused on the main value prop."),
-    ("Visual Attention (F-Pattern)", "Visitors scan pages in predictable patterns, focusing on top headlines, badges, and primary CTAs before decaying rapidly."),
+    ("Clarity First", "Visitors decide whether to stay within 3 seconds. If your headline describes internal features instead of clear customer outcomes, visitors leave."),
+    ("Benefit Framing", "People buy transformation, not features. Focus on time saved, frustration removed, or revenue earned to drive real engagement."),
+    ("Low-Friction CTAs", "A generic 'Submit' button creates doubt. Action buttons convert much better when they state the value gained (e.g., 'Get My Free Guide')."),
 ]
 
-with st.expander("CRO Academy — Conversion Psychology Principles", expanded=False):
-    st.caption("Learn the principles powering SiteGlow AI's scoring engine:")
+with st.expander("Persuasion Essentials — Core Rules", expanded=False):
     for title, body in ACADEMY_LESSONS:
         st.markdown(
             f'<div class="lesson-card"><div class="lesson-title">{title}</div>'
@@ -172,11 +169,9 @@ with st.expander("CRO Academy — Conversion Psychology Principles", expanded=Fa
 
 # Helper Utilities
 def esc(value):
-    """HTML escaping helper function."""
     return html_lib.escape(str(value or ""), quote=True)
 
 def clean_json_response(text):
-    """Strips markdown formatting to prevent JSON decode errors."""
     text = text.strip()
     text = re.sub(r"^```json\s*", "", text)
     text = re.sub(r"^```\s*", "", text)
@@ -258,7 +253,6 @@ def process_input(raw_text):
 
 @st.cache_data(ttl=3600)
 def get_available_models_cached(api_key):
-    """Cache the models list to avoid redundant API hits per run."""
     genai.configure(api_key=api_key)
     try:
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
@@ -282,7 +276,7 @@ def get_execution_message(user_in, comp_in="", is_battle=False):
             clean_domain = user_in.strip().replace("https://", "").replace("http://", "").split('/')[0]
             return f"Live Scraping & Analyzing: {clean_domain}..."
         else:
-            return "Analyzing Product Pitch Copy & Persuasion Logic..."
+            return "Analyzing Product Pitch Copy & Customer Intent..."
     else:
         c_is_url = is_url_pattern(comp_in)
         if u_is_url and c_is_url:
@@ -290,478 +284,40 @@ def get_execution_message(user_in, comp_in="", is_battle=False):
         elif u_is_url or c_is_url:
             return "Hybrid Engine: Scraping Live Domain & Evaluating Pitch Text..."
         else:
-            return "Pitch Battle: Comparing Copywriting Psychology & Value Props..."
+            return "Pitch Battle: Comparing Messaging & Customer Offerings..."
 
 def build_prompt(processed_copy, is_url_source=False):
     source_label = "Live Website Scraped Data" if is_url_source else "Product Pitch Text"
     return f"""
-    You are an world-class conversion rate optimization advisor and copywriting expert.
+    You are a world-class conversion rate advisor and marketing strategist.
     Analyze this {source_label}:
     "{processed_copy}"
 
     INSTRUCTIONS:
-    1. Understand the user's exact business model, product, and target audience. Write like a human growth advisor using simple, direct, everyday words (avoid dry corporate buzzwords).
+    1. Understand the user's specific product, offer, and audience. Speak in simple, direct, human language.
     2. Evaluate 3 KEY AREAS of their pitch:
        a) Main Title (First Impression / Headline)
        b) Main Offer (Supporting Promise / Value)
        c) Next Step (Call to Action / Hook)
-    3. If an area is already great, start the flaw text exactly with "Optimal — " and explain why it works simply.
+    3. If an area is effective, start the flaw text exactly with "Optimal — " followed by a clear explanation.
     4. Provide 2 DISTINCT, HIGH-CONVERTING HERO CONCEPTS:
-       - Option A: Focused on the big transformation/outcome.
-       - Option B: Focused on speed, ease, or removing user frustration.
+       - Option A: Outcome & Transformation Focused
+       - Option B: Speed, Ease, or Pain-Relief Focused
 
-    Return ONLY valid JSON with this exact structure (no markdown tags):
+    Return ONLY valid JSON with this exact structure (no markdown formatting):
     {{
         "original_score": 78.0,
         "clarity_score": 75,
         "benefit_score": 80,
         "urgency_score": 45,
         "friction_score": 70,
-        "headline_flaw": "Focuses on how the tool works rather than the immediate result the customer gets.",
-        "headline_lesson": "People don't buy features; they buy the fastest path to their desired outcome.",
+        "headline_flaw": "Focuses on how the tool works rather than the main result the customer gets.",
+        "headline_lesson": "People buy the fastest path to their goal, not technical details.",
         "value_prop_flaw": "Optimal — Clearly explains who this is for and what problem it solves.",
-        "value_prop_lesson": "Subheadlines should immediately reinforce the main headline's biggest promise.",
+        "value_prop_lesson": "Subheadlines should immediately reinforce the headline's biggest promise.",
         "cta_flaw": "The button wording is generic and doesn't give users a strong reason to click right now.",
-        "cta_lesson": "Action buttons convert much better when they state the value gained rather than just a task like 'Submit'.",
-        "badge_text": "INSTANT FAMILY MEMORIES",
-        "social_proof": "Trusted by 15,000+ happy parents worldwide",
-        "headline_a": "Take Frame-Worthy Family Photos in One Tap",
-        "subheadline_a": "Turn everyday phone snapshots into beautiful, studio-quality family memories without struggling with camera settings.",
-        "headline_b": "Never Miss a Precious Family Moment Again",
-        "subheadline_b": "The fastest way for busy parents to capture crisp, perfectly lit photos of their kids automatically.",
-        "cta_primary": "Try It Free Today",
-        "cta_secondary": "See 30-Sec Demo"
-    }}
-    """
-
-def run_gemini_analysis(processed_copy, is_url_source, available_models):
-    prompt = build_prompt(processed_copy, is_url_source)
-    for model_name in available_models:
-        try:
-            model = genai.GenerativeModel(
-                model_name,
-                generation_config={"response_mime_type": "application/json"}
-            )
-            response = model.generate_content(prompt)
-            if response and response.text:
-                clean_text = clean_json_response(response.text)
-                data = json.loads(clean_text)
-                return data, model_name
-        except Exception:
-            time.sleep(0.5)
-            continue
-    return None, None
-
-def normalize_data(data):
-    try:
-        orig_score = round(float(data.get("original_score", 65.0)), 1)
-    except Exception:
-        orig_score = 65.0
-
-    return {
-        "orig_score": orig_score,
-        "clarity": data.get("clarity_score", 60),
-        "benefit": data.get("benefit_score", 50),
-        "urgency": data.get("urgency_score", 40),
-        "friction": data.get("friction_score", 70),
-        "headline_flaw": data.get("headline_flaw", "Needs a stronger hook focused on end results."),
-        "headline_lesson": data.get("headline_lesson", "Headlines convert best when stating immediate outcomes."),
-        "value_flaw": data.get("value_prop_flaw", "Could explain the core benefit more clearly."),
-        "value_lesson": data.get("value_prop_lesson", "Supporting copy should clarify the primary mechanism driving the promise."),
-        "cta_flaw": data.get("cta_flaw", "Button text needs higher urgency and clearer reward."),
-        "cta_lesson": data.get("cta_lesson", "Action-oriented CTAs specifying immediate value reduce decision hesitation."),
-        "badge": data.get("badge_text", "AI POWERED SOLUTION"),
-        "social_proof": data.get("social_proof", "Loved by thousands of active users"),
-        "headline_a": data.get("headline_a", data.get("rewritten_headline", "Transform Your Results Overnight")),
-        "subheadline_a": data.get("subheadline_a", data.get("rewritten_subheadline", "The simplest way to get better outcomes with zero hassle.")),
-        "headline_b": data.get("headline_b", "Stop Wasting Time on Complex Tools"),
-        "subheadline_b": data.get("subheadline_b", "Get professional-grade results in seconds with automated smart workflows."),
-        "cta_primary": data.get("cta_primary", "Get Started Free"),
-        "cta_secondary": data.get("cta_secondary", "Watch Quick Demo"),
-    }
-def analyze_single_site_task(raw_input, available_models):
-    processed_text, is_url, structured_snap, error_msg = process_input(raw_input)
-    if error_msg:
-        return {"status": "error", "error": error_msg}
-
-    raw_data, used_model = run_gemini_analysis(processed_text, is_url, available_models)
-
-    if raw_data is None:
-        return {"status": "error", "error": "Gemini API failed to return structured CRO analysis. Please check your key or rate limits."}
-
-    norm_data = normalize_data(raw_data)
-    norm_data["used_model"] = used_model
-    return {
-        "status": "success",
-        "data": norm_data,
-        "before": structured_snap,
-        "is_url": is_url
-    }
-
-def get_status_badge(flaw_text):
-    clean = str(flaw_text).strip().lower()
-    if clean.startswith("none") or clean.startswith("optimal") or "strong" in clean or "excellent" in clean:
-        return "<span style='color:#34D399; font-weight:800;'>[Optimal]</span>"
-    return "<span style='color:#F87171; font-weight:800;'>[Flaw Detected]</span>"
-
-def compute_winner(main, comp):
-    main_score = main["orig_score"]
-    comp_score = comp["orig_score"]
-
-    winner = "yours" if main_score > comp_score else ("competitor" if comp_score > main_score else "tie")
-    gap = round(abs(main_score - comp_score), 1)
-
-    sub_metrics = [
-        ("Message Clarity", main["clarity"], comp["clarity"], True),
-        ("Benefit Alignment", main["benefit"], comp["benefit"], True),
-        ("CTA Urgency", main["urgency"], comp["urgency"], True),
-        ("Friction (lower is better)", main["friction"], comp["friction"], False),
-    ]
-
-    breakdown = []
-    for label, m_val, c_val, higher_is_better in sub_metrics:
-        side_winner = "yours" if (m_val > c_val if higher_is_better else m_val < c_val) else ("competitor" if (c_val > m_val if higher_is_better else c_val < m_val) else "tie")
-        breakdown.append((label, m_val, c_val, side_winner, abs(m_val - c_val)))
-
-    return winner, gap, breakdown
-
-def render_hero_preview(fields, before_snapshot, variant_id):
-    # Defensive lookup to handle old session state or missing fields gracefully
-    if not isinstance(fields, dict):
-        fields = {}
-    if not isinstance(before_snapshot, dict):
-        before_snapshot = {}
-
-    badge = esc(fields.get("badge", "AI POWERED SOLUTION"))
-    headline_a = esc(fields.get("headline_a", fields.get("rewritten_headline", "Transform Your Results")))
-    subheadline_a = esc(fields.get("subheadline_a", fields.get("rewritten_subheadline", "The simplest way to get better outcomes.")))
-    headline_b = esc(fields.get("headline_b", "Stop Wasting Time on Complex Tools"))
-    subheadline_b = esc(fields.get("subheadline_b", "Get professional-grade results in seconds."))
-    cta_primary = esc(fields.get("cta_primary", "Get Started Free"))
-    cta_secondary = esc(fields.get("cta_secondary", "Watch Quick Demo"))
-    social_proof = esc(fields.get("social_proof", "Loved by thousands of active users"))
-    
-    before_h1 = esc(before_snapshot.get("h1", "Original Headline"))
-    before_h2 = esc(before_snapshot.get("h2", "Original Subheadline"))
-    before_body = esc(before_snapshot.get("body", "Original Description"))
-
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet">
-        <style>
-            * {{ box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }}
-            body {{ background-color: #090d16; color: #ffffff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }}
-            
-            .toolbar {{ display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center; }}
-            .toolbar-btn {{
-                background: rgba(255,255,255,0.05); color: #9CA3AF; border: 1px solid rgba(255,255,255,0.1);
-                padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s;
-            }}
-            .toolbar-btn:hover {{ background: rgba(255,255,255,0.1); color: #fff; }}
-            .toolbar-btn.active {{ background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #ffffff; border-color: transparent; }}
-            
-            .preview-container {{ width: 100%; max-width: 900px; position: relative; }}
-            
-            .ai-view {{
-                background: rgba(17, 24, 39, 0.9); border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 24px; padding: 50px 36px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-                position: relative; overflow: hidden; display: block;
-            }}
-            .ai-badge {{
-                display: inline-block; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3);
-                color: #A5B4FC; font-size: 12px; font-weight: 800; padding: 6px 16px; border-radius: 20px; 
-                text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;
-            }}
-            .ai-h1 {{ font-size: 38px; font-weight: 900; color: #fff; margin: 0 0 20px 0; line-height: 1.18; letter-spacing: -0.02em; }}
-            .ai-h2 {{ font-size: 17px; color: #cbd5e1; margin: 0 auto 28px auto; max-width: 620px; line-height: 1.6; font-weight: 500; }}
-            .ai-buttons {{ display: flex; gap: 14px; justify-content: center; margin-bottom: 22px; flex-wrap: wrap; }}
-            .btn-primary {{
-                background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; border: none;
-                padding: 14px 30px; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer;
-                box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
-            }}
-            .btn-secondary {{
-                background: rgba(30, 41, 59, 0.8); color: #e2e8f0; border: 1px solid #334155;
-                padding: 14px 30px; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer;
-            }}
-            .ai-proof {{ font-size: 13px; color: #94a3b8; font-weight: 700; }}
-            
-            .orig-view {{
-                background: #0f172a; border: 1px solid #1e293b; border-radius: 24px; padding: 50px 36px; text-align: left;
-                display: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            }}
-            .orig-badge {{
-                display: inline-block; background: #1e293b; color: #cbd5e1; font-size: 12px; font-weight: 800;
-                padding: 6px 14px; border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;
-            }}
-            .orig-h1 {{ font-size: 30px; font-weight: 800; color: #fff; margin: 0 0 14px 0; line-height: 1.3; }}
-            .orig-h2 {{ font-size: 18px; font-weight: 600; color: #a5b4fc; margin: 0 0 20px 0; }}
-            .orig-p {{ font-size: 15px; color: #94a3b8; margin: 0 0 28px 0; line-height: 1.6; max-width: 700px; }}
-            .orig-btn {{ background: #334155; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }}
-            
-            #heatmap-{variant_id} {{ opacity: 0; pointer-events: none; transition: opacity 0.35s ease; position: absolute; inset: 0; z-index: 10; }}
-            .heat-zone {{ position: absolute; border-radius: 20px; mix-blend-mode: screen; }}
-            .heat-label {{
-                position: absolute; font-size: 12px; font-weight: 800; letter-spacing: 0.04em;
-                padding: 6px 12px; border-radius: 20px; background: rgba(0,0,0,0.85);
-                white-space: nowrap; z-index: 11; border: 1px solid rgba(255,255,255,0.1);
-            }}
-            .dot {{ display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }}
-        </style>
-    </head>
-    <body>
-        <div class="toolbar">
-            <button id="btn-opta-{variant_id}" class="toolbar-btn active" onclick="showView('{variant_id}','opta')">Option A (Outcome Pitch)</button>
-            <button id="btn-optb-{variant_id}" class="toolbar-btn" onclick="showView('{variant_id}','optb')">Option B (Speed/Ease Pitch)</button>
-            <button id="btn-original-{variant_id}" class="toolbar-btn" onclick="showView('{variant_id}','original')">Original Text</button>
-            <button id="btn-heat-{variant_id}" class="toolbar-btn" onclick="toggleHeatmap('{variant_id}')">Attention Heatmap</button>
-        </div>
-
-        <div class="preview-container">
-            <!-- OPTION A -->
-            <div id="opta-{variant_id}" class="ai-view">
-                <span class="ai-badge">{badge}</span>
-                <h1 class="ai-h1">{headline_a}</h1>
-                <h2 class="ai-h2">{subheadline_a}</h2>
-                <div class="ai-buttons">
-                    <button class="btn-primary">{cta_primary}</button>
-                    <button class="btn-secondary">{cta_secondary}</button>
-                </div>
-                <div class="ai-proof">{social_proof}</div>
-            </div>
-
-            <!-- OPTION B -->
-            <div id="optb-{variant_id}" class="ai-view" style="display:none;">
-                <span class="ai-badge">{badge}</span>
-                <h1 class="ai-h1">{headline_b}</h1>
-                <h2 class="ai-h2">{subheadline_b}</h2>
-                <div class="ai-buttons">
-                    <button class="btn-primary">{cta_primary}</button>
-                    <button class="btn-secondary">{cta_secondary}</button>
-                </div>
-                <div class="ai-proof">{social_proof}</div>
-            </div>
-
-            <!-- ORIGINAL -->
-            <div id="original-{variant_id}" class="orig-view">
-                <span class="orig-badge">Original Text Supplied</span>
-                <h1 class="orig-h1">{before_h1}</h1>
-                <h2 class="orig-h2">{before_h2}</h2>
-                <p class="orig-p">{before_body}</p>
-                <button class="orig-btn">Learn More</button>
-            </div>
-
-            <!-- Heatmap Overlay -->
-            <div id="heatmap-{variant_id}">
-                <div class="heat-zone" style="top:15%; left:10%; width:80%; height:30%; background:radial-gradient(ellipse at center, rgba(239,68,68,0.7), rgba(239,68,68,0) 70%);"></div>
-                <span class="heat-label" style="top:20%; left:50%; transform:translateX(-50%); color:#FCA5A5;">
-                    <span class="dot" style="background:#EF4444;"></span> 65% Main Title Focus
-                </span>
-                <div class="heat-zone" style="top:60%; left:20%; width:60%; height:20%; background:radial-gradient(ellipse at center, rgba(250,204,21,0.6), rgba(250,204,21,0) 70%);"></div>
-                <span class="heat-label" style="top:68%; left:50%; transform:translateX(-50%); color:#FDE68A;">
-                    <span class="dot" style="background:#FACC15;"></span> 25% Action Button Focus
-                </span>
-            </div>
-        </div>
-
-        <script>
-            function showView(id, view) {{
-                document.getElementById('opta-' + id).style.display = (view === 'opta') ? 'block' : 'none';
-                document.getElementById('optb-' + id).style.display = (view === 'optb') ? 'block' : 'none';
-                document.getElementById('original-' + id).style.display = (view === 'original') ? 'block' : 'none';
-                
-                document.getElementById('btn-opta-' + id).classList.toggle('active', view === 'opta');
-                document.getElementById('btn-optb-' + id).classList.toggle('active', view === 'optb');
-                document.getElementById('btn-original-' + id).classList.toggle('active', view === 'original');
-            }}
-            function toggleHeatmap(id) {{
-                var hm = document.getElementById('heatmap-' + id);
-                var isOn = hm.style.opacity === '1';
-                hm.style.opacity = isOn ? '0' : '1';
-                document.getElementById('btn-heat-' + id).classList.toggle('active', !isOn);
-            }}
-        </script>
-    </body>
-    </html>
-    """def render_single_scorecard(main):
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">Overall Impact Score</div>', unsafe_allow_html=True)
-        st.metric("Pitch Score", f"{main['orig_score']} / 100")
-        st.caption(f"Engine Model: `{main['used_model']}`")
-        st.write("---")
-        st.write(f"**How Clear Is Your Message?** {main['clarity']}/100")
-        st.progress(main["clarity"] / 100)
-        st.write(f"**Does It Show Real Customer Benefit?** {main['benefit']}/100")
-        st.progress(main["benefit"] / 100)
-        st.write(f"**Does It Make People Take Action?** {main['urgency']}/100")
-        st.progress(main["urgency"] / 100)
-        st.write(f"**Is It Easy To Understand & Use?** {main['friction']}/100")
-        st.progress(main["friction"] / 100)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">What\'s Working & How to Fix It</div>', unsafe_allow_html=True)
-        
-        # Section 1: Headline
-        st.markdown(f"#### {get_status_badge(main['headline_flaw'])} 1. Main Title (First Impression)", unsafe_allow_html=True)
-        st.write(main["headline_flaw"])
-        st.markdown(f'<div class="principle-line"><b>Key Rule:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
-        st.write("---")
-        
-        # Section 2: Value Proposition / Subheadline
-        st.markdown(f"#### {get_status_badge(main['value_flaw'])} 2. Supporting Promise (Why They Buy)", unsafe_allow_html=True)
-        st.write(main["value_flaw"])
-        st.markdown(f'<div class="principle-line"><b>Key Rule:</b> {esc(main["value_lesson"])}</div>', unsafe_allow_html=True)
-        st.write("---")
-        
-        # Section 3: Call To Action
-        st.markdown(f"#### {get_status_badge(main['cta_flaw'])} 3. Next Step & Call to Action (The Hook)", unsafe_allow_html=True)
-        st.write(main["cta_flaw"])
-        st.markdown(f'<div class="principle-line"><b>Key Rule:</b> {esc(main["cta_lesson"])}</div>', unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-def render_battle_scorecard(main, comp):
-    winner, gap, breakdown = compute_winner(main, comp)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<span class="site-label-blue">YOUR ITEM</span>', unsafe_allow_html=True)
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.metric("Score", f"{main['orig_score']} / 100")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<span class="site-label-red">COMPETITOR</span>', unsafe_allow_html=True)
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.metric("Score", f"{comp['orig_score']} / 100")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="card-box">', unsafe_allow_html=True)
-    st.markdown('<div class="card-title">Competitor Battle Outcome</div>', unsafe_allow_html=True)
-    if winner == "yours":
-        st.markdown(f'<span class="winner-badge">Your site/pitch wins by {gap} points</span>', unsafe_allow_html=True)
-    elif winner == "competitor":
-        st.markdown(f'<span class="loser-badge">Competitor leads by {gap} points</span>', unsafe_allow_html=True)
-    else:
-        st.markdown('<span class="brand-badge">Dead heat — scores are tied</span>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# Sidebar
-with st.sidebar:
-    st.header("Engine Setup")
-    raw_api_key = st.text_input("Enter Gemini API Key:", type="password")
-    api_key = raw_api_key.strip() if raw_api_key else ""
-    st.markdown("[Get a free key from Google AI Studio](https://aistudio.google.com/)")
-
-battle_mode = st.toggle("Enable Competitor CRO Battle Mode", value=False)
-
-if battle_mode:
-    col_in1, col_in2 = st.columns(2)
-    with col_in1:
-        user_input = st.text_area("Your website domain OR pitch copy:", height=140, key="user_input_battle", placeholder="e.g. basecamp.com or 'We build AI software that automates invoice creation...'")
-    with col_in2:
-        competitor_input = st.text_area("Competitor website domain OR pitch copy:", height=140, key="competitor_input_battle", placeholder="e.g. ghost.org or competitor product pitch")
-else:
-    user_input = st.text_area("Paste product pitch text OR enter website domain (e.g. basecamp.com, ghost.org, https://...):", height=120, key="user_input_single")
-    competitor_input = ""
-
-analyze_button = st.button("Analyze & Auto-Redesign", type="primary")
-
-# Execution Handler
-if analyze_button:
-    if not api_key:
-        st.error("Please enter your Gemini API Key in the sidebar.")
-    elif battle_mode and (not user_input.strip() or not competitor_input.strip()):
-        st.warning("Please fill in both input fields for Battle Mode.")
-    elif not battle_mode and not user_input.strip():
-        st.warning("Please enter pitch copy or a domain URL.")
-    else:
-        exec_message = get_execution_message(user_input, competitor_input, battle_mode)
-        with st.spinner(exec_message):
-            genai.configure(api_key=api_key)
-            available_models = get_available_models_cached(api_key)
-
-            if battle_mode:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-                    future_main = executor.submit(analyze_single_site_task, user_input, available_models)
-                    future_comp = executor.submit(analyze_single_site_task, competitor_input, available_models)
-                    
-                    res_main = future_main.result()
-                    res_comp = future_comp.result()
-
-                if res_main["status"] == "error":
-                    st.session_state['has_data'] = False
-                    st.error(f"Your Site/Pitch Error: {res_main['error']}")
-                elif res_comp["status"] == "error":
-                    st.session_state['has_data'] = False
-                    st.error(f"Competitor Error: {res_comp['error']}")
-                else:
-                    st.session_state['has_data'] = True
-                    st.session_state['main'] = res_main["data"]
-                    st.session_state['before_main'] = res_main["before"]
-                    st.session_state['comp'] = res_comp["data"]
-                    st.session_state['before_comp'] = res_comp["before"]
-                    st.session_state['battle_mode'] = True
-
-            else:
-                res_main = analyze_single_site_task(user_input, available_models)
-                if res_main["status"] == "error":
-                    st.session_state['has_data'] = False
-                    st.error(f"Error: {res_main['error']}")
-                else:
-                    st.session_state['has_data'] = True
-                    st.session_state['main'] = res_main["data"]
-                    st.session_state['before_main'] = res_main["before"]
-                    st.session_state['comp'] = None
-                    st.session_state['before_comp'] = None
-                    st.session_state['battle_mode'] = False
-
-# Render Output UI
-if st.session_state.get('has_data', False):
-    main = st.session_state['main']
-    before_main = st.session_state['before_main']
-    comp = st.session_state['comp']
-    before_comp = st.session_state['before_comp']
-    is_battle = st.session_state['battle_mode']
-
-    tab1, tab2, tab3 = st.tabs(["CRO Scorecard", "Live Hero Redesign", "Export Code"])
-
-    with tab1:
-        if is_battle and comp:
-            render_battle_scorecard(main, comp)
-        else:
-            render_single_scorecard(main)
-
-    with tab2:
-        if is_battle and comp:
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown('<span class="site-label-blue">YOUR SITE / PITCH</span>', unsafe_allow_html=True)
-                st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
-            with c2:
-                st.markdown('<span class="site-label-red">COMPETITOR</span>', unsafe_allow_html=True)
-                st.components.v1.html(render_hero_preview(comp, before_comp, "comp"), height=680, scrolling=True)
-        else:
-            st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
-
-    with tab3:
-        st.subheader("Ready-to-Use HTML")
-        if is_battle and comp:
-            sub1, sub2 = st.tabs(["Your Item HTML", "Competitor Item HTML"])
-            with sub1:
-                html_main = render_hero_preview(main, before_main, "main")
-                st.caption("Hero section HTML code for **Your Item**:")
-                st.code(html_main, language="html")
-                st.download_button("Download Your Item HTML", data=html_main, file_name="your_hero_redesign.html", mime="text/html")
-            with sub2:
-                html_comp = render_hero_preview(comp, before_comp, "comp")
-                st.caption("Hero section HTML code for **Competitor**:")
-                st.code(html_comp, language="html")
-                st.download_button("Download Competitor HTML", data=html_comp, file_name="competitor_hero.html", mime="text/html")
-        else:
-            html_main = render_hero_preview(main, before_main, "main")
-            st.code(html_main, language="html")
-            st.download_button("Download Hero HTML", data=html_main, file_name="hero_redesign.html", mime="text/html")
+        "cta_lesson": "Action buttons convert much better when they state the clear reward gained.",
+        "badge_text": "INSTANT WORKFLOW ENGINE",
+        "social_proof": "Trusted by 10,000+ active teams",
+        "headline_a": "Eliminate Bottlenecks & Scale Team Output",
+        "subheadline_a": "Unify
