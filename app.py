@@ -9,7 +9,7 @@ import time
 import concurrent.futures
 
 # App Layout Configuration
-st.set_page_config(page_title="SiteGlow AI — Conversion & Design Engine", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="SiteGlow AI — Conversion Engine", layout="wide")
 
 # Modern Dark SaaS Styling
 st.markdown("""
@@ -143,25 +143,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Header
+# Header (Kept one emoji here per user preference for minimal use)
 st.markdown('<span class="brand-badge">⚡ AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
 st.markdown('<div class="main-title">SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="sub-title">Diagnoses website copy, rewrites heroes into high-converting layouts, and teaches '
+    '<div class="sub-title">Diagnoses website copy and pitch text, rewrites hero sections into high-converting layouts, and teaches '
     'conversion psychology — powered by Parallel Competitor Battles & Heatmap Labs.</div>',
     unsafe_allow_html=True
 )
 
 # CRO Academy Lessons
 ACADEMY_LESSONS = [
-    ("🔍 Clarity", "Visitors decide whether to keep reading within seconds. If a headline describes a feature instead of the outcome, visitors leave rather than translate it."),
-    ("🎁 Benefit Framing", "People buy outcomes: time saved, stress removed, revenue earned. Copy listing features reads like a catalog; copy naming transformation drives action."),
-    ("⏳ Urgency & Scarcity", "People act faster when moments feel timely. A generic 'Submit' button asks for effort; a specific, value-bound CTA gives a reason to click now."),
-    ("🧠 Cognitive Friction", "Every extra decision or vague step adds mental load. Lower friction makes the primary next step obvious at a single glance."),
-    ("👁️ Visual Attention (F-Pattern)", "Visitors scan pages in predictable patterns, spending most attention on headlines and hero elements before decaying sharply."),
+    ("Clarity", "Visitors decide whether to stay within 3 seconds. If a headline describes a feature instead of the desired outcome, visitors leave."),
+    ("Benefit Framing", "People buy transformation, not features: time saved, friction removed, revenue earned. Feature copy reads like a catalog; outcome copy converts."),
+    ("Urgency & Scarcity", "Action drops without momentum. A generic 'Submit' button creates cognitive drag; a benefit-tied, action-oriented CTA drives high conversion."),
+    ("Cognitive Friction", "Every extra step or ambiguous sentence increases drop-off. Minimizing mental resistance keeps users focused on the main value prop."),
+    ("Visual Attention (F-Pattern)", "Visitors scan pages in predictable patterns, focusing on top headlines, badges, and primary CTAs before decaying rapidly."),
 ]
 
-with st.expander("🎓 CRO Academy — Conversion Psychology Principles", expanded=False):
+with st.expander("CRO Academy — Conversion Psychology Principles", expanded=False):
     st.caption("Learn the principles powering SiteGlow AI's scoring engine:")
     for title, body in ACADEMY_LESSONS:
         st.markdown(
@@ -175,13 +175,21 @@ def esc(value):
     """HTML escaping helper function."""
     return html_lib.escape(str(value or ""), quote=True)
 
-def is_url_pattern(text):
+def clean_json_response(text):
+    """Strips markdown formatting to prevent JSON decode errors."""
     text = text.strip()
-    if ' ' in text or '\n' in text:
+    text = re.sub(r"^```json\s*", "", text)
+    text = re.sub(r"^```\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    return text
+
+def is_url_pattern(text):
+    text = (text or "").strip()
+    if not text or '\n' in text or ' ' in text:
         return False
     if text.startswith("http://") or text.startswith("https://"):
         return True
-    domain_pattern = r'^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:/.*)?$'
+    domain_pattern = r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?::\d+)?(?:/.*)?$'
     return bool(re.match(domain_pattern, text))
 
 def normalize_url(text):
@@ -192,8 +200,8 @@ def normalize_url(text):
 
 def extract_website_content(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        response = requests.get(url, headers=headers, timeout=6)
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        response = requests.get(url, headers=headers, timeout=8, allow_redirects=True)
         if response.status_code != 200:
             return None
         
@@ -206,19 +214,19 @@ def extract_website_content(url):
 
         h1_list = [h.get_text().strip() for h in soup.find_all('h1') if h.get_text().strip()]
         h2_list = [h.get_text().strip() for h in soup.find_all('h2') if h.get_text().strip()]
-        paragraphs = [p.get_text().strip() for p in soup.find_all('p') if p.get_text().strip()][:3]
+        paragraphs = [p.get_text().strip() for p in soup.find_all('p') if p.get_text().strip()][:4]
 
         primary_h1 = h1_list[0] if h1_list else title
         primary_h2 = h2_list[0] if h2_list else meta_desc
 
-        text_content = f"Page Title: {title}\nPrimary H1: {primary_h1}\nPrimary H2: {primary_h2}\nMeta Description: {meta_desc}\nSample Copy: {' '.join(paragraphs)}"[:1500]
+        text_content = f"Page Title: {title}\nPrimary Headline (H1): {primary_h1}\nSubheadline (H2): {primary_h2}\nMeta Description: {meta_desc}\nSample Copy: {' '.join(paragraphs)}"[:1800]
         return {
-            "text_content": text_content if len(text_content) > 30 else None,
+            "text_content": text_content if len(text_content) > 25 else None,
             "h1": primary_h1 or title or "Original Headline",
             "h2": primary_h2 or meta_desc or "Original Subheadline",
             "body": meta_desc or (' '.join(paragraphs)) or "No description provided."
         }
-    except Exception:
+    except requests.exceptions.RequestException:
         return None
 
 def process_input(raw_text):
@@ -227,13 +235,13 @@ def process_input(raw_text):
         full_url = normalize_url(text)
         scraped_data = extract_website_content(full_url)
         if scraped_data is None or scraped_data["text_content"] is None:
-            return None, True, None, f"Could not reach or scrape the URL `{full_url}`. Please verify the domain is live or paste plain product text directly."
+            return None, True, None, f"Could not scrape URL `{full_url}`. Please ensure the domain is accessible or paste pitch text directly."
         return scraped_data["text_content"], True, scraped_data, None
     
     sentences = [s.strip() for s in re.split(r'[.\n]', text) if s.strip()]
     h1 = sentences[0][:120] if sentences else (text[:120] if text else "Original Headline")
-    h2 = sentences[1][:160] if len(sentences) > 1 else "Original Subheadline / Pitch Description"
-    body = text[:280] if text else "No original copy supplied."
+    h2 = sentences[1][:160] if len(sentences) > 1 else "Original Pitch / Value Proposition"
+    body = text[:300] if text else "No original pitch copy supplied."
     
     structured_fallback = {
         "h1": h1,
@@ -242,56 +250,81 @@ def process_input(raw_text):
     }
     return text, False, structured_fallback, None
 
-def get_available_models():
+@st.cache_data(ttl=3600)
+def get_available_models_cached(api_key):
+    """Cache the models list to avoid redundant API hits per run."""
+    genai.configure(api_key=api_key)
     try:
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         priority_list = [
+            "models/gemini-3.1-pro",
+            "models/gemini-2.5-pro",
             "models/gemini-2.5-flash",
             "models/gemini-2.0-flash",
-            "models/gemini-1.5-flash",
-            "models/gemini-1.5-pro"
+            "models/gemini-1.5-pro",
+            "models/gemini-1.5-flash"
         ]
         available = [m for m in priority_list if m in all_models] + [m for m in all_models if m not in priority_list]
         return available if available else ["models/gemini-1.5-flash"]
     except Exception:
         return ["models/gemini-1.5-flash"]
 
-def build_prompt(processed_copy):
+def get_execution_message(user_in, comp_in="", is_battle=False):
+    u_is_url = is_url_pattern(user_in)
+    if not is_battle:
+        if u_is_url:
+            clean_domain = user_in.strip().replace("https://", "").replace("http://", "").split('/')[0]
+            return f"Live Scraping & Analyzing: {clean_domain}..."
+        else:
+            return "Analyzing Product Pitch Copy & Persuasion Logic..."
+    else:
+        c_is_url = is_url_pattern(comp_in)
+        if u_is_url and c_is_url:
+            return "Scraper Active: Live Analyzing Both Websites in Parallel..."
+        elif u_is_url or c_is_url:
+            return "Hybrid Engine: Scraping Live Domain & Evaluating Pitch Text..."
+        else:
+            return "Pitch Battle: Comparing Copywriting Psychology & Value Props..."
+
+def build_prompt(processed_copy, is_url_source=False):
+    source_label = "Live Website Scraped Data" if is_url_source else "Product Pitch Text"
     return f"""
-    You are a world-class CRO strategist and SaaS visual designer.
-    Analyze this business content: "{processed_copy}"
+    You are an elite, realistic Conversion Rate Optimization (CRO) Director.
+    Analyze this {source_label}:
+    "{processed_copy}"
 
-    EVALUATION RULES:
-    1. Score from 15.0 to 99.0 based on persuasiveness.
-    2. If an element is exceptional, start flaw text with "None — ".
-    3. Rewrite messaging into a high-converting Hero block section.
-    4. Provide rating scores (0-100) for Clarity, Urgency, Benefit Alignment, Friction.
-    5. Provide a transferable 1-sentence CRO psychological lesson for each flaw.
+    EVALUATION INSTRUCTIONS:
+    1. Assess the text for true conversion potential based on Clarity, Urgency, Benefit Alignment, and Cognitive Friction.
+    2. BE PRAGMATIC AND REALISTIC. Do not invent flaws if the copy is genuinely effective.
+    3. If an element (Headline, Value Prop, CTA) has a significant, conversion-killing flaw, identify it clearly.
+    4. IF THE ELEMENT IS ALREADY STRONG AND EFFECTIVE, start the flaw text exactly with: "Optimal — " followed by a brief explanation of why it works.
+    5. For any actual flaw found, provide a transferable 1-sentence CRO psychological principle explaining *why* fixing it boosts conversion.
+    6. Rewrite the messaging into an elite, high-converting Hero Block section (Badge, Headline, Subheadline, Primary CTA, Secondary CTA, Social Proof).
 
-    Return JSON matching this schema:
+    Return ONLY valid JSON matching this exact schema (no markdown formatting):
     {{
-        "original_score": 42.5,
-        "clarity_score": 50,
-        "urgency_score": 30,
-        "benefit_score": 40,
-        "friction_score": 80,
-        "headline_flaw": "Focuses on internal features.",
-        "headline_lesson": "Headlines convert better when stating user outcomes.",
-        "value_prop_flaw": "Lacks specific outcome metrics.",
-        "value_prop_lesson": "Quantified outcomes build trust.",
-        "cta_flaw": "Generic low-urgency button.",
-        "cta_lesson": "Action-oriented CTAs increase conversions.",
-        "badge_text": "AUTOMATED WORKFLOWS",
-        "social_proof": "⚡ Trusted by 10,000+ teams",
-        "rewritten_headline": "Bring Your Team into Alignment",
-        "rewritten_subheadline": "Unify execution and communication in one fast dashboard.",
-        "cta_primary": "Start Free Trial →",
-        "cta_secondary": "Watch Demo"
+        "original_score": 64.5,
+        "clarity_score": 55,
+        "urgency_score": 35,
+        "benefit_score": 50,
+        "friction_score": 65,
+        "headline_flaw": "Focuses on process rather than the tangible user outcome.",
+        "headline_lesson": "Headlines convert significantly higher when stating immediate transformation over feature details.",
+        "value_prop_flaw": "Optimal — Communicates specific numerical value immediately.",
+        "value_prop_lesson": "Quantified metrics build trust and reduce doubt faster than adjectives.",
+        "cta_flaw": "Generic, high-friction button text with low incentive.",
+        "cta_lesson": "Action-oriented CTAs specifying immediate value reduce decision hesitation.",
+        "badge_text": "AUTOMATED WORKFLOW ENGINE",
+        "social_proof": "Trusted by 10,000+ high-growth teams",
+        "rewritten_headline": "Eliminate Bottlenecks & Scale Team Execution",
+        "rewritten_subheadline": "Unify communication and project workflows into one fast, intelligent dashboard.",
+        "cta_primary": "Start Free 14-Day Trial",
+        "cta_secondary": "Watch 2-Min Demo"
     }}
     """
 
-def run_gemini_analysis(processed_copy, available_models):
-    prompt = build_prompt(processed_copy)
+def run_gemini_analysis(processed_copy, is_url_source, available_models):
+    prompt = build_prompt(processed_copy, is_url_source)
     for model_name in available_models:
         try:
             model = genai.GenerativeModel(
@@ -300,7 +333,8 @@ def run_gemini_analysis(processed_copy, available_models):
             )
             response = model.generate_content(prompt)
             if response and response.text:
-                data = json.loads(response.text)
+                clean_text = clean_json_response(response.text)
+                data = json.loads(clean_text)
                 return data, model_name
         except Exception:
             time.sleep(0.5)
@@ -319,17 +353,17 @@ def normalize_data(data):
         "urgency": data.get("urgency_score", 40),
         "benefit": data.get("benefit_score", 50),
         "friction": data.get("friction_score", 70),
-        "headline_flaw": data.get("headline_flaw", "Focuses on internal building process rather than external results."),
-        "headline_lesson": data.get("headline_lesson", "Headlines convert better when they state outcomes."),
-        "value_flaw": data.get("value_prop_flaw", "Lists commodity features without emotional stakes."),
-        "value_lesson": data.get("value_prop_lesson", "Quantified outcomes are more persuasive."),
-        "cta_flaw": data.get("cta_flaw", "Low-energy CTA with minimal incentive."),
-        "cta_lesson": data.get("cta_lesson", "Specific action verbs outperform passive buttons."),
+        "headline_flaw": data.get("headline_flaw", "Focuses on building internal process rather than end user value."),
+        "headline_lesson": data.get("headline_lesson", "Headlines convert better when stating outcomes over mechanism."),
+        "value_flaw": data.get("value_prop_flaw", "Lists commodity feature lists without clear stakes."),
+        "value_lesson": data.get("value_prop_lesson", "Quantified benefit metrics build trust faster."),
+        "cta_flaw": data.get("cta_flaw", "Low-energy CTA button text with low urgency."),
+        "cta_lesson": data.get("cta_lesson", "Specific action verbs outperform passive CTA copy."),
         "badge": data.get("badge_text", "AI WORKFLOW ENGINE"),
-        "social_proof": data.get("social_proof", "⚡ Loved by 5,000+ founders"),
+        "social_proof": data.get("social_proof", "Loved by 5,000+ founders"),
         "headline": data.get("rewritten_headline", "Eliminate Chaos & Scale Execution"),
         "subheadline": data.get("rewritten_subheadline", "Streamline collaboration with an intelligent workspace."),
-        "cta_primary": data.get("cta_primary", "Get Started Free →"),
+        "cta_primary": data.get("cta_primary", "Get Started Free"),
         "cta_secondary": data.get("cta_secondary", "View Live Demo"),
     }
 
@@ -338,10 +372,10 @@ def analyze_single_site_task(raw_input, available_models):
     if error_msg:
         return {"status": "error", "error": error_msg}
 
-    raw_data, used_model = run_gemini_analysis(processed_text, available_models)
+    raw_data, used_model = run_gemini_analysis(processed_text, is_url, available_models)
 
     if raw_data is None:
-        return {"status": "error", "error": "Gemini API failed to generate analysis. Please verify your API key."}
+        return {"status": "error", "error": "Gemini API failed to return structured CRO analysis. Please check your key or rate limits."}
 
     norm_data = normalize_data(raw_data)
     norm_data["used_model"] = used_model
@@ -354,9 +388,9 @@ def analyze_single_site_task(raw_input, available_models):
 
 def get_status_badge(flaw_text):
     clean = str(flaw_text).strip().lower()
-    if clean.startswith("none") or "strong" in clean or "excellent" in clean:
-        return "✅ <span style='color:#34D399; font-weight:800;'>Optimal</span>"
-    return "❌ <span style='color:#F87171; font-weight:800;'>Flaw Detected</span>"
+    if clean.startswith("none") or clean.startswith("optimal") or "strong" in clean or "excellent" in clean:
+        return "<span style='color:#34D399; font-weight:800;'>[Optimal]</span>"
+    return "<span style='color:#F87171; font-weight:800;'>[Flaw Detected]</span>"
 
 def compute_winner(main, comp):
     main_score = main["orig_score"]
@@ -377,8 +411,7 @@ def compute_winner(main, comp):
         side_winner = "yours" if (m_val > c_val if higher_is_better else m_val < c_val) else ("competitor" if (c_val > m_val if higher_is_better else c_val < m_val) else "tie")
         breakdown.append((label, m_val, c_val, side_winner, abs(m_val - c_val)))
 
-    biggest = max(breakdown, key=lambda row: row[4]) if breakdown else None
-    return winner, gap, breakdown, biggest
+    return winner, gap, breakdown
 
 def render_hero_preview(fields, before_snapshot, variant_id):
     badge = esc(fields["badge"])
@@ -396,8 +429,8 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     <!DOCTYPE html>
     <html>
     <head>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+        <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+        <link href="[https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap](https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap)" rel="stylesheet">
         <style>
             body {{ font-family: 'Plus Jakarta Sans', sans-serif; background-color: #090d16; color: #ffffff; margin: 0; padding: 20px; }}
             .glass-card {{ background: rgba(17, 24, 39, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }}
@@ -412,20 +445,22 @@ def render_hero_preview(fields, before_snapshot, variant_id):
                 padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
                 white-space: nowrap;
             }}
+            .dot-red {{ display: inline-block; width: 8px; height: 8px; background-color: #EF4444; border-radius: 50%; margin-right: 4px; }}
+            .dot-yellow {{ display: inline-block; width: 8px; height: 8px; background-color: #FACC15; border-radius: 50%; margin-right: 4px; }}
         </style>
     </head>
     <body>
         <div class="max-w-4xl mx-auto mb-4 flex flex-wrap items-center justify-center gap-2">
-            <button id="btn-redesign-{variant_id}" class="toolbar-btn active text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','redesign')">✨ AI Redesign</button>
-            <button id="btn-original-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','original')">📝 Original Wireframe</button>
-            <button id="btn-heat-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="toggleHeatmap('{variant_id}')">🔥 Attention Heatmap</button>
+            <button id="btn-redesign-{variant_id}" class="toolbar-btn active text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','redesign')">AI Redesign</button>
+            <button id="btn-original-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','original')">Original Content</button>
+            <button id="btn-heat-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="toggleHeatmap('{variant_id}')">Attention Heatmap</button>
         </div>
 
         <div class="relative max-w-4xl mx-auto">
             <div id="redesign-{variant_id}" class="relative glass-card rounded-3xl p-8 md:p-12 shadow-2xl overflow-hidden">
                 <div class="relative z-10 text-center">
                     <span class="inline-flex items-center gap-2 bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-extrabold px-4 py-1.5 rounded-full mb-6 uppercase tracking-wider">
-                        ✨ {badge}
+                        {badge}
                     </span>
                     <h1 class="text-3xl md:text-5xl font-black tracking-tight text-white mb-6 leading-tight">{headline}</h1>
                     <p class="text-slate-300 text-base md:text-lg mb-8 max-w-2xl mx-auto leading-relaxed font-medium">{subheadline}</p>
@@ -438,19 +473,23 @@ def render_hero_preview(fields, before_snapshot, variant_id):
 
                 <div id="heatmap-{variant_id}" class="absolute inset-0 z-20">
                     <div class="heat-zone" style="top:12%; left:10%; width:80%; height:26%; background:radial-gradient(ellipse at center, rgba(239,68,68,0.6), rgba(239,68,68,0) 70%);"></div>
-                    <span class="heat-label" style="top:14%; left:50%; transform:translateX(-50%); color:#FCA5A5;">🔴 65% Headline Focus</span>
+                    <span class="heat-label" style="top:14%; left:50%; transform:translateX(-50%); color:#FCA5A5;">
+                        <span class="dot-red"></span> 65% Headline Focus
+                    </span>
                     <div class="heat-zone" style="top:55%; left:25%; width:50%; height:20%; background:radial-gradient(ellipse at center, rgba(250,204,21,0.55), rgba(250,204,21,0) 70%);"></div>
-                    <span class="heat-label" style="top:62%; left:50%; transform:translateX(-50%); color:#FDE68A;">🟡 25% CTA Focus</span>
+                    <span class="heat-label" style="top:62%; left:50%; transform:translateX(-50%); color:#FDE68A;">
+                        <span class="dot-yellow"></span> 25% CTA Focus
+                    </span>
                 </div>
             </div>
 
             <div id="original-{variant_id}" class="relative bg-slate-900 border border-slate-800 rounded-3xl p-8 md:p-12 shadow-2xl">
-                <span class="inline-block bg-slate-800 text-slate-300 text-xs font-extrabold px-3.5 py-1.5 rounded-lg mb-6 uppercase tracking-wider">Original Scraped Structure</span>
+                <span class="inline-block bg-slate-800 text-slate-300 text-xs font-extrabold px-3.5 py-1.5 rounded-lg mb-6 uppercase tracking-wider">Original Supplied Structure</span>
                 <h1 class="text-2xl md:text-4xl font-extrabold text-white mb-4 leading-snug">{before_h1}</h1>
                 <h2 class="text-lg md:text-xl font-semibold text-indigo-300 mb-6 leading-relaxed">{before_h2}</h2>
                 <p class="text-slate-400 text-sm md:text-base mb-8 max-w-3xl leading-relaxed">{before_body}</p>
                 <div class="pt-2">
-                    <button class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-6 py-3 rounded-xl transition-colors">Submit / Learn More</button>
+                    <button class="bg-slate-700 text-white text-sm font-bold px-6 py-3 rounded-xl">Learn More</button>
                 </div>
             </div>
         </div>
@@ -496,23 +535,23 @@ def render_single_scorecard(main):
         st.markdown('<div class="card-title">Conversion Diagnosis & Lessons</div>', unsafe_allow_html=True)
         st.markdown(f"#### {get_status_badge(main['headline_flaw'])} Headline Structure", unsafe_allow_html=True)
         st.write(main["headline_flaw"])
-        st.markdown(f'<div class="principle-line">🎓 <b>Principle:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="principle-line"><b>Principle:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
         st.write("---")
         st.markdown(f"#### {get_status_badge(main['value_flaw'])} Value Proposition", unsafe_allow_html=True)
         st.write(main["value_flaw"])
-        st.markdown(f'<div class="principle-line">🎓 <b>Principle:</b> {esc(main["value_lesson"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="principle-line"><b>Principle:</b> {esc(main["value_lesson"])}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
 def render_battle_scorecard(main, comp):
-    winner, gap, breakdown, biggest = compute_winner(main, comp)
+    winner, gap, breakdown = compute_winner(main, comp)
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown('<span class="site-label-blue">🟦 YOUR SITE</span>', unsafe_allow_html=True)
+        st.markdown('<span class="site-label-blue">YOUR ITEM</span>', unsafe_allow_html=True)
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
         st.metric("Score", f"{main['orig_score']} / 100")
         st.markdown('</div>', unsafe_allow_html=True)
     with col2:
-        st.markdown('<span class="site-label-red">🟥 COMPETITOR</span>', unsafe_allow_html=True)
+        st.markdown('<span class="site-label-red">COMPETITOR</span>', unsafe_allow_html=True)
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
         st.metric("Score", f"{comp['orig_score']} / 100")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -520,33 +559,33 @@ def render_battle_scorecard(main, comp):
     st.markdown('<div class="card-box">', unsafe_allow_html=True)
     st.markdown('<div class="card-title">Competitor Battle Outcome</div>', unsafe_allow_html=True)
     if winner == "yours":
-        st.markdown(f'<span class="winner-badge">🏆 Your site wins by {gap} points</span>', unsafe_allow_html=True)
+        st.markdown(f'<span class="winner-badge">Your site/pitch wins by {gap} points</span>', unsafe_allow_html=True)
     elif winner == "competitor":
-        st.markdown(f'<span class="loser-badge">⚠️ Competitor leads by {gap} points</span>', unsafe_allow_html=True)
+        st.markdown(f'<span class="loser-badge">Competitor leads by {gap} points</span>', unsafe_allow_html=True)
     else:
-        st.markdown('<span class="brand-badge">🤝 Dead heat — scores are tied</span>', unsafe_allow_html=True)
+        st.markdown('<span class="brand-badge">Dead heat — scores are tied</span>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Sidebar
 with st.sidebar:
-    st.header("⚙️ Engine Setup")
+    st.header("Engine Setup")
     raw_api_key = st.text_input("Enter Gemini API Key:", type="password")
     api_key = raw_api_key.strip() if raw_api_key else ""
     st.markdown("[Get a free key from Google AI Studio](https://aistudio.google.com/)")
 
-battle_mode = st.toggle("🥊 Enable Competitor CRO Battle Mode", value=False)
+battle_mode = st.toggle("Enable Competitor CRO Battle Mode", value=False)
 
 if battle_mode:
     col_in1, col_in2 = st.columns(2)
     with col_in1:
-        user_input = st.text_area("🟦 Your website URL or pitch text:", height=140, key="user_input_battle", placeholder="e.g. basecamp.com or product pitch text")
+        user_input = st.text_area("Your website domain OR pitch copy:", height=140, key="user_input_battle", placeholder="e.g. basecamp.com or 'We build AI software that automates invoice creation...'")
     with col_in2:
-        competitor_input = st.text_area("🟥 Competitor website URL or pitch text:", height=140, key="competitor_input_battle", placeholder="e.g. ghost.org or competitor pitch text")
+        competitor_input = st.text_area("Competitor website domain OR pitch copy:", height=140, key="competitor_input_battle", placeholder="e.g. ghost.org or competitor product pitch")
 else:
-    user_input = st.text_area("Paste product pitch OR enter website domain (e.g. basecamp.com, ghost.org):", height=120, key="user_input_single")
+    user_input = st.text_area("Paste product pitch text OR enter website domain (e.g. basecamp.com, ghost.org, https://...):", height=120, key="user_input_single")
     competitor_input = ""
 
-analyze_button = st.button("🚀 Analyze & Auto-Redesign Live", type="primary")
+analyze_button = st.button("Analyze & Auto-Redesign", type="primary")
 
 # Execution Handler
 if analyze_button:
@@ -555,11 +594,12 @@ if analyze_button:
     elif battle_mode and (not user_input.strip() or not competitor_input.strip()):
         st.warning("Please fill in both input fields for Battle Mode.")
     elif not battle_mode and not user_input.strip():
-        st.warning("Please enter text or a URL.")
+        st.warning("Please enter pitch copy or a domain URL.")
     else:
-        with st.spinner("Executing parallel web scrapers and Gemini CRO analysis..."):
+        exec_message = get_execution_message(user_input, competitor_input, battle_mode)
+        with st.spinner(exec_message):
             genai.configure(api_key=api_key)
-            available_models = get_available_models()
+            available_models = get_available_models_cached(api_key)
 
             if battle_mode:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
@@ -571,10 +611,10 @@ if analyze_button:
 
                 if res_main["status"] == "error":
                     st.session_state['has_data'] = False
-                    st.error(f"❌ Your Site Error: {res_main['error']}")
+                    st.error(f"Your Site/Pitch Error: {res_main['error']}")
                 elif res_comp["status"] == "error":
                     st.session_state['has_data'] = False
-                    st.error(f"❌ Competitor Site Error: {res_comp['error']}")
+                    st.error(f"Competitor Error: {res_comp['error']}")
                 else:
                     st.session_state['has_data'] = True
                     st.session_state['main'] = res_main["data"]
@@ -587,7 +627,7 @@ if analyze_button:
                 res_main = analyze_single_site_task(user_input, available_models)
                 if res_main["status"] == "error":
                     st.session_state['has_data'] = False
-                    st.error(f"❌ Error: {res_main['error']}")
+                    st.error(f"Error: {res_main['error']}")
                 else:
                     st.session_state['has_data'] = True
                     st.session_state['main'] = res_main["data"]
@@ -604,7 +644,7 @@ if st.session_state.get('has_data', False):
     before_comp = st.session_state['before_comp']
     is_battle = st.session_state['battle_mode']
 
-    tab1, tab2, tab3 = st.tabs(["📊 CRO Scorecard", "✨ Live Hero Redesign", "💻 Export Code"])
+    tab1, tab2, tab3 = st.tabs(["CRO Scorecard", "Live Hero Redesign", "Export Code"])
 
     with tab1:
         if is_battle and comp:
@@ -616,29 +656,29 @@ if st.session_state.get('has_data', False):
         if is_battle and comp:
             c1, c2 = st.columns(2)
             with c1:
-                st.markdown('<span class="site-label-blue">🟦 YOUR SITE</span>', unsafe_allow_html=True)
+                st.markdown('<span class="site-label-blue">YOUR SITE / PITCH</span>', unsafe_allow_html=True)
                 st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
             with c2:
-                st.markdown('<span class="site-label-red">🟥 COMPETITOR</span>', unsafe_allow_html=True)
+                st.markdown('<span class="site-label-red">COMPETITOR</span>', unsafe_allow_html=True)
                 st.components.v1.html(render_hero_preview(comp, before_comp, "comp"), height=680, scrolling=True)
         else:
             st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
 
     with tab3:
-        st.subheader("💻 Ready-to-Use Tailwind HTML")
+        st.subheader("Ready-to-Use Tailwind HTML")
         if is_battle and comp:
-            sub1, sub2 = st.tabs(["🟦 Your Site HTML", "🟥 Competitor Site HTML"])
+            sub1, sub2 = st.tabs(["Your Item HTML", "Competitor Item HTML"])
             with sub1:
                 html_main = render_hero_preview(main, before_main, "main")
-                st.caption("Hero section HTML code for **Your Site**:")
+                st.caption("Hero section HTML code for **Your Item**:")
                 st.code(html_main, language="html")
-                st.download_button("📥 Download Your Site HTML", data=html_main, file_name="your_site_hero.html", mime="text/html")
+                st.download_button("Download Your Item HTML", data=html_main, file_name="your_hero_redesign.html", mime="text/html")
             with sub2:
                 html_comp = render_hero_preview(comp, before_comp, "comp")
-                st.caption("Hero section HTML code for **Competitor Site**:")
+                st.caption("Hero section HTML code for **Competitor**:")
                 st.code(html_comp, language="html")
-                st.download_button("📥 Download Competitor HTML", data=html_comp, file_name="competitor_hero.html", mime="text/html")
+                st.download_button("Download Competitor HTML", data=html_comp, file_name="competitor_hero.html", mime="text/html")
         else:
             html_main = render_hero_preview(main, before_main, "main")
             st.code(html_main, language="html")
-            st.download_button("📥 Download Hero HTML", data=html_main, file_name="hero_redesign.html", mime="text/html")
+            st.download_button("Download Hero HTML", data=html_main, file_name="hero_redesign.html", mime="text/html")
