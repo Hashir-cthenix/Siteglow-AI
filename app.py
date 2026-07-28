@@ -426,14 +426,20 @@ def compute_winner(main, comp):
     return winner, gap, breakdown
 
 def render_hero_preview(fields, before_snapshot, variant_id):
-    badge = esc(fields["badge"])
-    headline_a = esc(fields["headline_a"])
-    subheadline_a = esc(fields["subheadline_a"])
-    headline_b = esc(fields["headline_b"])
-    subheadline_b = esc(fields["subheadline_b"])
-    cta_primary = esc(fields["cta_primary"])
-    cta_secondary = esc(fields["cta_secondary"])
-    social_proof = esc(fields["social_proof"])
+    # Defensive lookup to handle old session state or missing fields gracefully
+    if not isinstance(fields, dict):
+        fields = {}
+    if not isinstance(before_snapshot, dict):
+        before_snapshot = {}
+
+    badge = esc(fields.get("badge", "AI POWERED SOLUTION"))
+    headline_a = esc(fields.get("headline_a", fields.get("rewritten_headline", "Transform Your Results")))
+    subheadline_a = esc(fields.get("subheadline_a", fields.get("rewritten_subheadline", "The simplest way to get better outcomes.")))
+    headline_b = esc(fields.get("headline_b", "Stop Wasting Time on Complex Tools"))
+    subheadline_b = esc(fields.get("subheadline_b", "Get professional-grade results in seconds."))
+    cta_primary = esc(fields.get("cta_primary", "Get Started Free"))
+    cta_secondary = esc(fields.get("cta_secondary", "Watch Quick Demo"))
+    social_proof = esc(fields.get("social_proof", "Loved by thousands of active users"))
     
     before_h1 = esc(before_snapshot.get("h1", "Original Headline"))
     before_h2 = esc(before_snapshot.get("h2", "Original Subheadline"))
@@ -579,8 +585,7 @@ def render_hero_preview(fields, before_snapshot, variant_id):
         </script>
     </body>
     </html>
-    """
-def render_single_scorecard(main):
+    """def render_single_scorecard(main):
     col1, col2 = st.columns([1, 2])
     with col1:
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
