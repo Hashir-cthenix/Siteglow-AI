@@ -8,8 +8,10 @@ from bs4 import BeautifulSoup
 import time
 import concurrent.futures
 
+# App Layout Configuration
 st.set_page_config(page_title="SiteGlow AI — Conversion & Design Engine", page_icon="⚡", layout="wide")
 
+# Modern Dark SaaS Styling
 st.markdown("""
 <style>
     .stApp { background-color: #090D16; color: #E2E8F0; }
@@ -141,6 +143,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Header
 st.markdown('<span class="brand-badge">⚡ AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
 st.markdown('<div class="main-title">SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown(
@@ -149,6 +152,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# CRO Academy Lessons
 ACADEMY_LESSONS = [
     ("🔍 Clarity", "Visitors decide whether to keep reading within seconds. If a headline describes a feature instead of the outcome, visitors leave rather than translate it."),
     ("🎁 Benefit Framing", "People buy outcomes: time saved, stress removed, revenue earned. Copy listing features reads like a catalog; copy naming transformation drives action."),
@@ -165,6 +169,11 @@ with st.expander("🎓 CRO Academy — Conversion Psychology Principles", expand
             f'<div class="lesson-body">{body}</div></div>',
             unsafe_allow_html=True
         )
+
+# Helper Utilities
+def esc(value):
+    """HTML escaping helper function."""
+    return html_lib.escape(str(value or ""), quote=True)
 
 def is_url_pattern(text):
     text = text.strip()
@@ -218,7 +227,7 @@ def process_input(raw_text):
         full_url = normalize_url(text)
         scraped_data = extract_website_content(full_url)
         if scraped_data is None or scraped_data["text_content"] is None:
-            return None, True, None, f"Could not reach or scrape the URL `{full_url}`. Please verify the domain is reachable or paste plain product text directly."
+            return None, True, None, f"Could not reach or scrape the URL `{full_url}`. Please verify the domain is live or paste plain product text directly."
         return scraped_data["text_content"], True, scraped_data, None
     
     sentences = [s.strip() for s in re.split(r'[.\n]', text) if s.strip()]
@@ -344,7 +353,7 @@ def analyze_single_site_task(raw_input, available_models):
     }
 
 def get_status_badge(flaw_text):
-    clean = flaw_text.strip().lower()
+    clean = str(flaw_text).strip().lower()
     if clean.startswith("none") or "strong" in clean or "excellent" in clean:
         return "✅ <span style='color:#34D399; font-weight:800;'>Optimal</span>"
     return "❌ <span style='color:#F87171; font-weight:800;'>Flaw Detected</span>"
@@ -518,6 +527,7 @@ def render_battle_scorecard(main, comp):
         st.markdown('<span class="brand-badge">🤝 Dead heat — scores are tied</span>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
+# Sidebar
 with st.sidebar:
     st.header("⚙️ Engine Setup")
     raw_api_key = st.text_input("Enter Gemini API Key:", type="password")
@@ -538,6 +548,7 @@ else:
 
 analyze_button = st.button("🚀 Analyze & Auto-Redesign Live", type="primary")
 
+# Execution Handler
 if analyze_button:
     if not api_key:
         st.error("Please enter your Gemini API Key in the sidebar.")
@@ -559,8 +570,10 @@ if analyze_button:
                     res_comp = future_comp.result()
 
                 if res_main["status"] == "error":
+                    st.session_state['has_data'] = False
                     st.error(f"❌ Your Site Error: {res_main['error']}")
                 elif res_comp["status"] == "error":
+                    st.session_state['has_data'] = False
                     st.error(f"❌ Competitor Site Error: {res_comp['error']}")
                 else:
                     st.session_state['has_data'] = True
@@ -573,6 +586,7 @@ if analyze_button:
             else:
                 res_main = analyze_single_site_task(user_input, available_models)
                 if res_main["status"] == "error":
+                    st.session_state['has_data'] = False
                     st.error(f"❌ Error: {res_main['error']}")
                 else:
                     st.session_state['has_data'] = True
@@ -582,6 +596,7 @@ if analyze_button:
                     st.session_state['before_comp'] = None
                     st.session_state['battle_mode'] = False
 
+# Render Output UI
 if st.session_state.get('has_data', False):
     main = st.session_state['main']
     before_main = st.session_state['before_main']
