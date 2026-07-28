@@ -143,7 +143,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Header (Kept one emoji here per user preference for minimal use)
+# Header
 st.markdown('<span class="brand-badge">⚡ AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
 st.markdown('<div class="main-title">SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown(
@@ -238,24 +238,26 @@ def process_input(raw_text):
             return None, True, None, f"Could not scrape URL `{full_url}`. Please ensure the domain is accessible or paste pitch text directly."
         return scraped_data["text_content"], True, scraped_data, None
     
-    # Smarter parsing to prevent repetitive text when user inputs just a single line
     sentences = [s.strip() for s in re.split(r'[.\n]', text) if s.strip()]
     
-    if len(sentences) == 1:
-        h1 = sentences[0][:120]
-        h2 = "Original Pitch / Value Proposition"
-        body = "No additional details provided."
-    else:
+    if len(sentences) <= 1:
         h1 = sentences[0][:120] if sentences else (text[:120] if text else "Original Headline")
-        h2 = sentences[1][:160] if len(sentences) > 1 else "Original Pitch / Value Proposition"
-        body = text[:300] if text else "No original pitch copy supplied."
+        h2 = "Original Pitch / Value Proposition"
+        body = "No additional body copy supplied."
+    else:
+        h1 = sentences[0][:120]
+        h2 = sentences[1][:160]
+        body = ' '.join(sentences[2:]) if len(sentences) > 2 else sentences[1]
     
     structured_fallback = {
         "h1": h1,
         "h2": h2,
         "body": body
     }
-    return text, False, structured_fallback, Nonedef get_available_models_cached(api_key):
+    return text, False, structured_fallback, None
+
+@st.cache_data(ttl=3600)
+def get_available_models_cached(api_key):
     """Cache the models list to avoid redundant API hits per run."""
     genai.configure(api_key=api_key)
     try:
@@ -263,7 +265,10 @@ def process_input(raw_text):
         priority_list = [
             "models/gemini-3.1-pro",
             "models/gemini-2.5-pro",
-            "models/gemini-2.5-flash"
+            "models/gemini-2.5-flash",
+            "models/gemini-2.0-flash",
+            "models/gemini-1.5-pro",
+            "models/gemini-1.5-flash"
         ]
         available = [m for m in priority_list if m in all_models] + [m for m in all_models if m not in priority_list]
         return available if available else ["models/gemini-1.5-flash"]
@@ -426,12 +431,11 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     before_h2 = esc(before_snapshot.get("h2", "Original Subheadline"))
     before_body = esc(before_snapshot.get("body", "Original Description"))
 
-    # Switched entirely to raw custom CSS. Bypasses Tailwind CDN iframe blocks.
     return f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+        <link href="[https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap](https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap)" rel="stylesheet">
         <style>
             * {{ box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }}
             body {{ background-color: #090d16; color: #ffffff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }}
@@ -563,6 +567,7 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     </body>
     </html>
     """
+
 def render_single_scorecard(main):
     col1, col2 = st.columns([1, 2])
     with col1:
@@ -677,59 +682,3 @@ if analyze_button:
             else:
                 res_main = analyze_single_site_task(user_input, available_models)
                 if res_main["status"] == "error":
-                    st.session_state['has_data'] = False
-                    st.error(f"Error: {res_main['error']}")
-                else:
-                    st.session_state['has_data'] = True
-                    st.session_state['main'] = res_main["data"]
-                    st.session_state['before_main'] = res_main["before"]
-                    st.session_state['comp'] = None
-                    st.session_state['before_comp'] = None
-                    st.session_state['battle_mode'] = False
-
-# Render Output UI
-if st.session_state.get('has_data', False):
-    main = st.session_state['main']
-    before_main = st.session_state['before_main']
-    comp = st.session_state['comp']
-    before_comp = st.session_state['before_comp']
-    is_battle = st.session_state['battle_mode']
-
-    tab1, tab2, tab3 = st.tabs(["CRO Scorecard", "Live Hero Redesign", "Export Code"])
-
-    with tab1:
-        if is_battle and comp:
-            render_battle_scorecard(main, comp)
-        else:
-            render_single_scorecard(main)
-
-    with tab2:
-        if is_battle and comp:
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown('<span class="site-label-blue">YOUR SITE / PITCH</span>', unsafe_allow_html=True)
-                st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
-            with c2:
-                st.markdown('<span class="site-label-red">COMPETITOR</span>', unsafe_allow_html=True)
-                st.components.v1.html(render_hero_preview(comp, before_comp, "comp"), height=680, scrolling=True)
-        else:
-            st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
-
-    with tab3:
-        st.subheader("Ready-to-Use Tailwind HTML")
-        if is_battle and comp:
-            sub1, sub2 = st.tabs(["Your Item HTML", "Competitor Item HTML"])
-            with sub1:
-                html_main = render_hero_preview(main, before_main, "main")
-                st.caption("Hero section HTML code for **Your Item**:")
-                st.code(html_main, language="html")
-                st.download_button("Download Your Item HTML", data=html_main, file_name="your_hero_redesign.html", mime="text/html")
-            with sub2:
-                html_comp = render_hero_preview(comp, before_comp, "comp")
-                st.caption("Hero section HTML code for **Competitor**:")
-                st.code(html_comp, language="html")
-                st.download_button("Download Competitor HTML", data=html_comp, file_name="competitor_hero.html", mime="text/html")
-        else:
-            html_main = render_hero_preview(main, before_main, "main")
-            st.code(html_main, language="html")
-            st.download_button("Download Hero HTML", data=html_main, file_name="hero_redesign.html", mime="text/html")
