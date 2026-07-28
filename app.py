@@ -295,37 +295,42 @@ def get_execution_message(user_in, comp_in="", is_battle=False):
 def build_prompt(processed_copy, is_url_source=False):
     source_label = "Live Website Scraped Data" if is_url_source else "Product Pitch Text"
     return f"""
-    You are an elite, realistic Conversion Rate Optimization (CRO) Director.
+    You are an world-class conversion rate optimization advisor and copywriting expert.
     Analyze this {source_label}:
     "{processed_copy}"
 
-    EVALUATION INSTRUCTIONS:
-    1. Assess the text for true conversion potential based on Clarity, Urgency, Benefit Alignment, and Cognitive Friction.
-    2. BE PRAGMATIC AND REALISTIC. Do not invent flaws if the copy is genuinely effective.
-    3. If an element (Headline, Value Prop, CTA) has a significant, conversion-killing flaw, identify it clearly.
-    4. IF THE ELEMENT IS ALREADY STRONG AND EFFECTIVE, start the flaw text exactly with: "Optimal — " followed by a brief explanation of why it works.
-    5. For any actual flaw found, provide a transferable 1-sentence CRO psychological principle explaining *why* fixing it boosts conversion.
-    6. Rewrite the messaging into an elite, high-converting Hero Block section (Badge, Headline, Subheadline, Primary CTA, Secondary CTA, Social Proof).
+    INSTRUCTIONS:
+    1. Understand the user's exact business model, product, and target audience. Write like a human growth advisor using simple, direct, everyday words (avoid dry corporate buzzwords).
+    2. Evaluate 3 KEY AREAS of their pitch:
+       a) Main Title (First Impression / Headline)
+       b) Main Offer (Supporting Promise / Value)
+       c) Next Step (Call to Action / Hook)
+    3. If an area is already great, start the flaw text exactly with "Optimal — " and explain why it works simply.
+    4. Provide 2 DISTINCT, HIGH-CONVERTING HERO CONCEPTS:
+       - Option A: Focused on the big transformation/outcome.
+       - Option B: Focused on speed, ease, or removing user frustration.
 
-    Return ONLY valid JSON matching this exact schema (no markdown formatting):
+    Return ONLY valid JSON with this exact structure (no markdown tags):
     {{
-        "original_score": 64.5,
-        "clarity_score": 55,
-        "urgency_score": 35,
-        "benefit_score": 50,
-        "friction_score": 65,
-        "headline_flaw": "Focuses on process rather than the tangible user outcome.",
-        "headline_lesson": "Headlines convert significantly higher when stating immediate transformation over feature details.",
-        "value_prop_flaw": "Optimal — Communicates specific numerical value immediately.",
-        "value_prop_lesson": "Quantified metrics build trust and reduce doubt faster than adjectives.",
-        "cta_flaw": "Generic, high-friction button text with low incentive.",
-        "cta_lesson": "Action-oriented CTAs specifying immediate value reduce decision hesitation.",
-        "badge_text": "AUTOMATED WORKFLOW ENGINE",
-        "social_proof": "Trusted by 10,000+ high-growth teams",
-        "rewritten_headline": "Eliminate Bottlenecks & Scale Team Execution",
-        "rewritten_subheadline": "Unify communication and project workflows into one fast, intelligent dashboard.",
-        "cta_primary": "Start Free 14-Day Trial",
-        "cta_secondary": "Watch 2-Min Demo"
+        "original_score": 78.0,
+        "clarity_score": 75,
+        "benefit_score": 80,
+        "urgency_score": 45,
+        "friction_score": 70,
+        "headline_flaw": "Focuses on how the tool works rather than the immediate result the customer gets.",
+        "headline_lesson": "People don't buy features; they buy the fastest path to their desired outcome.",
+        "value_prop_flaw": "Optimal — Clearly explains who this is for and what problem it solves.",
+        "value_prop_lesson": "Subheadlines should immediately reinforce the main headline's biggest promise.",
+        "cta_flaw": "The button wording is generic and doesn't give users a strong reason to click right now.",
+        "cta_lesson": "Action buttons convert much better when they state the value gained rather than just a task like 'Submit'.",
+        "badge_text": "INSTANT FAMILY MEMORIES",
+        "social_proof": "Trusted by 15,000+ happy parents worldwide",
+        "headline_a": "Take Frame-Worthy Family Photos in One Tap",
+        "subheadline_a": "Turn everyday phone snapshots into beautiful, studio-quality family memories without struggling with camera settings.",
+        "headline_b": "Never Miss a Precious Family Moment Again",
+        "subheadline_b": "The fastest way for busy parents to capture crisp, perfectly lit photos of their kids automatically.",
+        "cta_primary": "Try It Free Today",
+        "cta_secondary": "See 30-Sec Demo"
     }}
     """
 
@@ -356,23 +361,24 @@ def normalize_data(data):
     return {
         "orig_score": orig_score,
         "clarity": data.get("clarity_score", 60),
-        "urgency": data.get("urgency_score", 40),
         "benefit": data.get("benefit_score", 50),
+        "urgency": data.get("urgency_score", 40),
         "friction": data.get("friction_score", 70),
-        "headline_flaw": data.get("headline_flaw", "Focuses on building internal process rather than end user value."),
-        "headline_lesson": data.get("headline_lesson", "Headlines convert better when stating outcomes over mechanism."),
-        "value_flaw": data.get("value_prop_flaw", "Lists commodity feature lists without clear stakes."),
-        "value_lesson": data.get("value_prop_lesson", "Quantified benefit metrics build trust faster."),
-        "cta_flaw": data.get("cta_flaw", "Low-energy CTA button text with low urgency."),
-        "cta_lesson": data.get("cta_lesson", "Specific action verbs outperform passive CTA copy."),
-        "badge": data.get("badge_text", "AI WORKFLOW ENGINE"),
-        "social_proof": data.get("social_proof", "Loved by 5,000+ founders"),
-        "headline": data.get("rewritten_headline", "Eliminate Chaos & Scale Execution"),
-        "subheadline": data.get("rewritten_subheadline", "Streamline collaboration with an intelligent workspace."),
+        "headline_flaw": data.get("headline_flaw", "Needs a stronger hook focused on end results."),
+        "headline_lesson": data.get("headline_lesson", "Headlines convert best when stating immediate outcomes."),
+        "value_flaw": data.get("value_prop_flaw", "Could explain the core benefit more clearly."),
+        "value_lesson": data.get("value_prop_lesson", "Supporting copy should clarify the primary mechanism driving the promise."),
+        "cta_flaw": data.get("cta_flaw", "Button text needs higher urgency and clearer reward."),
+        "cta_lesson": data.get("cta_lesson", "Action-oriented CTAs specifying immediate value reduce decision hesitation."),
+        "badge": data.get("badge_text", "AI POWERED SOLUTION"),
+        "social_proof": data.get("social_proof", "Loved by thousands of active users"),
+        "headline_a": data.get("headline_a", data.get("rewritten_headline", "Transform Your Results Overnight")),
+        "subheadline_a": data.get("subheadline_a", data.get("rewritten_subheadline", "The simplest way to get better outcomes with zero hassle.")),
+        "headline_b": data.get("headline_b", "Stop Wasting Time on Complex Tools"),
+        "subheadline_b": data.get("subheadline_b", "Get professional-grade results in seconds with automated smart workflows."),
         "cta_primary": data.get("cta_primary", "Get Started Free"),
-        "cta_secondary": data.get("cta_secondary", "View Live Demo"),
+        "cta_secondary": data.get("cta_secondary", "Watch Quick Demo"),
     }
-
 def analyze_single_site_task(raw_input, available_models):
     processed_text, is_url, structured_snap, error_msg = process_input(raw_input)
     if error_msg:
@@ -421,8 +427,10 @@ def compute_winner(main, comp):
 
 def render_hero_preview(fields, before_snapshot, variant_id):
     badge = esc(fields["badge"])
-    headline = esc(fields["headline"])
-    subheadline = esc(fields["subheadline"])
+    headline_a = esc(fields["headline_a"])
+    subheadline_a = esc(fields["subheadline_a"])
+    headline_b = esc(fields["headline_b"])
+    subheadline_b = esc(fields["subheadline_b"])
     cta_primary = esc(fields["cta_primary"])
     cta_secondary = esc(fields["cta_secondary"])
     social_proof = esc(fields["social_proof"])
@@ -435,126 +443,131 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     <!DOCTYPE html>
     <html>
     <head>
-        <link href="[https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap](https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap)" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet">
         <style>
             * {{ box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }}
             body {{ background-color: #090d16; color: #ffffff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }}
             
-            /* Modern Toolbar */
-            .toolbar {{ display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center; }}
+            .toolbar {{ display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; justify-content: center; }}
             .toolbar-btn {{
                 background: rgba(255,255,255,0.05); color: #9CA3AF; border: 1px solid rgba(255,255,255,0.1);
-                padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s;
+                padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s;
             }}
             .toolbar-btn:hover {{ background: rgba(255,255,255,0.1); color: #fff; }}
             .toolbar-btn.active {{ background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #ffffff; border-color: transparent; }}
             
-            /* Container Frame */
             .preview-container {{ width: 100%; max-width: 900px; position: relative; }}
             
-            /* AI Redesign View Styles */
             .ai-view {{
                 background: rgba(17, 24, 39, 0.9); border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 24px; padding: 60px 40px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                border-radius: 24px; padding: 50px 36px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
                 position: relative; overflow: hidden; display: block;
             }}
             .ai-badge {{
                 display: inline-block; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3);
                 color: #A5B4FC; font-size: 12px; font-weight: 800; padding: 6px 16px; border-radius: 20px; 
-                text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px;
+                text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;
             }}
-            .ai-h1 {{ font-size: 42px; font-weight: 900; color: #fff; margin: 0 0 24px 0; line-height: 1.15; letter-spacing: -0.02em; }}
-            .ai-h2 {{ font-size: 18px; color: #cbd5e1; margin: 0 auto 32px auto; max-width: 600px; line-height: 1.6; font-weight: 500; }}
-            .ai-buttons {{ display: flex; gap: 16px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }}
+            .ai-h1 {{ font-size: 38px; font-weight: 900; color: #fff; margin: 0 0 20px 0; line-height: 1.18; letter-spacing: -0.02em; }}
+            .ai-h2 {{ font-size: 17px; color: #cbd5e1; margin: 0 auto 28px auto; max-width: 620px; line-height: 1.6; font-weight: 500; }}
+            .ai-buttons {{ display: flex; gap: 14px; justify-content: center; margin-bottom: 22px; flex-wrap: wrap; }}
             .btn-primary {{
                 background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; border: none;
-                padding: 14px 32px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer;
+                padding: 14px 30px; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer;
                 box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
             }}
             .btn-secondary {{
                 background: rgba(30, 41, 59, 0.8); color: #e2e8f0; border: 1px solid #334155;
-                padding: 14px 32px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer;
+                padding: 14px 30px; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer;
             }}
             .ai-proof {{ font-size: 13px; color: #94a3b8; font-weight: 700; }}
             
-            /* Original View Styles */
             .orig-view {{
-                background: #0f172a; border: 1px solid #1e293b; border-radius: 24px; padding: 60px 40px; text-align: left;
+                background: #0f172a; border: 1px solid #1e293b; border-radius: 24px; padding: 50px 36px; text-align: left;
                 display: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             }}
             .orig-badge {{
                 display: inline-block; background: #1e293b; color: #cbd5e1; font-size: 12px; font-weight: 800;
-                padding: 6px 14px; border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px;
+                padding: 6px 14px; border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;
             }}
-            .orig-h1 {{ font-size: 32px; font-weight: 800; color: #fff; margin: 0 0 16px 0; line-height: 1.3; }}
-            .orig-h2 {{ font-size: 20px; font-weight: 600; color: #a5b4fc; margin: 0 0 24px 0; }}
-            .orig-p {{ font-size: 16px; color: #94a3b8; margin: 0 0 32px 0; line-height: 1.6; max-width: 700px; }}
+            .orig-h1 {{ font-size: 30px; font-weight: 800; color: #fff; margin: 0 0 14px 0; line-height: 1.3; }}
+            .orig-h2 {{ font-size: 18px; font-weight: 600; color: #a5b4fc; margin: 0 0 20px 0; }}
+            .orig-p {{ font-size: 15px; color: #94a3b8; margin: 0 0 28px 0; line-height: 1.6; max-width: 700px; }}
             .orig-btn {{ background: #334155; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }}
             
-            /* Heatmap Overlay */
             #heatmap-{variant_id} {{ opacity: 0; pointer-events: none; transition: opacity 0.35s ease; position: absolute; inset: 0; z-index: 10; }}
             .heat-zone {{ position: absolute; border-radius: 20px; mix-blend-mode: screen; }}
             .heat-label {{
                 position: absolute; font-size: 12px; font-weight: 800; letter-spacing: 0.04em;
-                padding: 6px 12px; border-radius: 20px; background: rgba(0,0,0,0.8);
+                padding: 6px 12px; border-radius: 20px; background: rgba(0,0,0,0.85);
                 white-space: nowrap; z-index: 11; border: 1px solid rgba(255,255,255,0.1);
             }}
             .dot {{ display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }}
-            
-            @media (max-width: 600px) {{
-                .ai-h1 {{ font-size: 32px; }}
-                .ai-buttons {{ flex-direction: column; width: 100%; }}
-                .btn-primary, .btn-secondary {{ width: 100%; }}
-            }}
         </style>
     </head>
     <body>
         <div class="toolbar">
-            <button id="btn-redesign-{variant_id}" class="toolbar-btn active" onclick="showView('{variant_id}','redesign')">AI Redesign</button>
-            <button id="btn-original-{variant_id}" class="toolbar-btn" onclick="showView('{variant_id}','original')">Original Content</button>
+            <button id="btn-opta-{variant_id}" class="toolbar-btn active" onclick="showView('{variant_id}','opta')">Option A (Outcome Pitch)</button>
+            <button id="btn-optb-{variant_id}" class="toolbar-btn" onclick="showView('{variant_id}','optb')">Option B (Speed/Ease Pitch)</button>
+            <button id="btn-original-{variant_id}" class="toolbar-btn" onclick="showView('{variant_id}','original')">Original Text</button>
             <button id="btn-heat-{variant_id}" class="toolbar-btn" onclick="toggleHeatmap('{variant_id}')">Attention Heatmap</button>
         </div>
 
         <div class="preview-container">
-            <!-- AI REDESIGN -->
-            <div id="redesign-{variant_id}" class="ai-view">
+            <!-- OPTION A -->
+            <div id="opta-{variant_id}" class="ai-view">
                 <span class="ai-badge">{badge}</span>
-                <h1 class="ai-h1">{headline}</h1>
-                <h2 class="ai-h2">{subheadline}</h2>
+                <h1 class="ai-h1">{headline_a}</h1>
+                <h2 class="ai-h2">{subheadline_a}</h2>
                 <div class="ai-buttons">
                     <button class="btn-primary">{cta_primary}</button>
                     <button class="btn-secondary">{cta_secondary}</button>
                 </div>
                 <div class="ai-proof">{social_proof}</div>
-
-                <!-- Heatmap Overlay -->
-                <div id="heatmap-{variant_id}">
-                    <div class="heat-zone" style="top:15%; left:10%; width:80%; height:30%; background:radial-gradient(ellipse at center, rgba(239,68,68,0.7), rgba(239,68,68,0) 70%);"></div>
-                    <span class="heat-label" style="top:20%; left:50%; transform:translateX(-50%); color:#FCA5A5;">
-                        <span class="dot" style="background:#EF4444;"></span> 65% Headline Focus
-                    </span>
-                    <div class="heat-zone" style="top:60%; left:20%; width:60%; height:20%; background:radial-gradient(ellipse at center, rgba(250,204,21,0.6), rgba(250,204,21,0) 70%);"></div>
-                    <span class="heat-label" style="top:68%; left:50%; transform:translateX(-50%); color:#FDE68A;">
-                        <span class="dot" style="background:#FACC15;"></span> 25% CTA Focus
-                    </span>
-                </div>
             </div>
 
-            <!-- ORIGINAL CONTENT -->
+            <!-- OPTION B -->
+            <div id="optb-{variant_id}" class="ai-view" style="display:none;">
+                <span class="ai-badge">{badge}</span>
+                <h1 class="ai-h1">{headline_b}</h1>
+                <h2 class="ai-h2">{subheadline_b}</h2>
+                <div class="ai-buttons">
+                    <button class="btn-primary">{cta_primary}</button>
+                    <button class="btn-secondary">{cta_secondary}</button>
+                </div>
+                <div class="ai-proof">{social_proof}</div>
+            </div>
+
+            <!-- ORIGINAL -->
             <div id="original-{variant_id}" class="orig-view">
-                <span class="orig-badge">Original Supplied Structure</span>
+                <span class="orig-badge">Original Text Supplied</span>
                 <h1 class="orig-h1">{before_h1}</h1>
                 <h2 class="orig-h2">{before_h2}</h2>
                 <p class="orig-p">{before_body}</p>
                 <button class="orig-btn">Learn More</button>
             </div>
+
+            <!-- Heatmap Overlay -->
+            <div id="heatmap-{variant_id}">
+                <div class="heat-zone" style="top:15%; left:10%; width:80%; height:30%; background:radial-gradient(ellipse at center, rgba(239,68,68,0.7), rgba(239,68,68,0) 70%);"></div>
+                <span class="heat-label" style="top:20%; left:50%; transform:translateX(-50%); color:#FCA5A5;">
+                    <span class="dot" style="background:#EF4444;"></span> 65% Main Title Focus
+                </span>
+                <div class="heat-zone" style="top:60%; left:20%; width:60%; height:20%; background:radial-gradient(ellipse at center, rgba(250,204,21,0.6), rgba(250,204,21,0) 70%);"></div>
+                <span class="heat-label" style="top:68%; left:50%; transform:translateX(-50%); color:#FDE68A;">
+                    <span class="dot" style="background:#FACC15;"></span> 25% Action Button Focus
+                </span>
+            </div>
         </div>
 
         <script>
             function showView(id, view) {{
-                document.getElementById('redesign-' + id).style.display = (view === 'redesign') ? 'block' : 'none';
+                document.getElementById('opta-' + id).style.display = (view === 'opta') ? 'block' : 'none';
+                document.getElementById('optb-' + id).style.display = (view === 'optb') ? 'block' : 'none';
                 document.getElementById('original-' + id).style.display = (view === 'original') ? 'block' : 'none';
-                document.getElementById('btn-redesign-' + id).classList.toggle('active', view === 'redesign');
+                
+                document.getElementById('btn-opta-' + id).classList.toggle('active', view === 'opta');
+                document.getElementById('btn-optb-' + id).classList.toggle('active', view === 'optb');
                 document.getElementById('btn-original-' + id).classList.toggle('active', view === 'original');
             }}
             function toggleHeatmap(id) {{
@@ -567,37 +580,46 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     </body>
     </html>
     """
-
 def render_single_scorecard(main):
     col1, col2 = st.columns([1, 2])
     with col1:
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">Conversion Health</div>', unsafe_allow_html=True)
-        st.metric("Health Score", f"{main['orig_score']} / 100")
+        st.markdown('<div class="card-title">Overall Impact Score</div>', unsafe_allow_html=True)
+        st.metric("Pitch Score", f"{main['orig_score']} / 100")
         st.caption(f"Engine Model: `{main['used_model']}`")
         st.write("---")
-        st.write(f"**Message Clarity:** {main['clarity']}/100")
+        st.write(f"**How Clear Is Your Message?** {main['clarity']}/100")
         st.progress(main["clarity"] / 100)
-        st.write(f"**Value/Benefit Focus:** {main['benefit']}/100")
+        st.write(f"**Does It Show Real Customer Benefit?** {main['benefit']}/100")
         st.progress(main["benefit"] / 100)
-        st.write(f"**CTA Urgency:** {main['urgency']}/100")
+        st.write(f"**Does It Make People Take Action?** {main['urgency']}/100")
         st.progress(main["urgency"] / 100)
-        st.write(f"**Friction Level:** {main['friction']}/100")
+        st.write(f"**Is It Easy To Understand & Use?** {main['friction']}/100")
         st.progress(main["friction"] / 100)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">Conversion Diagnosis & Lessons</div>', unsafe_allow_html=True)
-        st.markdown(f"#### {get_status_badge(main['headline_flaw'])} Headline Structure", unsafe_allow_html=True)
+        st.markdown('<div class="card-title">What\'s Working & How to Fix It</div>', unsafe_allow_html=True)
+        
+        # Section 1: Headline
+        st.markdown(f"#### {get_status_badge(main['headline_flaw'])} 1. Main Title (First Impression)", unsafe_allow_html=True)
         st.write(main["headline_flaw"])
-        st.markdown(f'<div class="principle-line"><b>Principle:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="principle-line"><b>Key Rule:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
         st.write("---")
-        st.markdown(f"#### {get_status_badge(main['value_flaw'])} Value Proposition", unsafe_allow_html=True)
+        
+        # Section 2: Value Proposition / Subheadline
+        st.markdown(f"#### {get_status_badge(main['value_flaw'])} 2. Supporting Promise (Why They Buy)", unsafe_allow_html=True)
         st.write(main["value_flaw"])
-        st.markdown(f'<div class="principle-line"><b>Principle:</b> {esc(main["value_lesson"])}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="principle-line"><b>Key Rule:</b> {esc(main["value_lesson"])}</div>', unsafe_allow_html=True)
+        st.write("---")
+        
+        # Section 3: Call To Action
+        st.markdown(f"#### {get_status_badge(main['cta_flaw'])} 3. Next Step & Call to Action (The Hook)", unsafe_allow_html=True)
+        st.write(main["cta_flaw"])
+        st.markdown(f'<div class="principle-line"><b>Key Rule:</b> {esc(main["cta_lesson"])}</div>', unsafe_allow_html=True)
+        
         st.markdown('</div>', unsafe_allow_html=True)
-
 def render_battle_scorecard(main, comp):
     winner, gap, breakdown = compute_winner(main, comp)
     col1, col2 = st.columns(2)
