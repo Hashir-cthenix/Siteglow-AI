@@ -682,3 +682,59 @@ if analyze_button:
             else:
                 res_main = analyze_single_site_task(user_input, available_models)
                 if res_main["status"] == "error":
+                    st.session_state['has_data'] = False
+                    st.error(f"Error: {res_main['error']}")
+                else:
+                    st.session_state['has_data'] = True
+                    st.session_state['main'] = res_main["data"]
+                    st.session_state['before_main'] = res_main["before"]
+                    st.session_state['comp'] = None
+                    st.session_state['before_comp'] = None
+                    st.session_state['battle_mode'] = False
+
+# Render Output UI
+if st.session_state.get('has_data', False):
+    main = st.session_state['main']
+    before_main = st.session_state['before_main']
+    comp = st.session_state['comp']
+    before_comp = st.session_state['before_comp']
+    is_battle = st.session_state['battle_mode']
+
+    tab1, tab2, tab3 = st.tabs(["CRO Scorecard", "Live Hero Redesign", "Export Code"])
+
+    with tab1:
+        if is_battle and comp:
+            render_battle_scorecard(main, comp)
+        else:
+            render_single_scorecard(main)
+
+    with tab2:
+        if is_battle and comp:
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown('<span class="site-label-blue">YOUR SITE / PITCH</span>', unsafe_allow_html=True)
+                st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
+            with c2:
+                st.markdown('<span class="site-label-red">COMPETITOR</span>', unsafe_allow_html=True)
+                st.components.v1.html(render_hero_preview(comp, before_comp, "comp"), height=680, scrolling=True)
+        else:
+            st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
+
+    with tab3:
+        st.subheader("Ready-to-Use HTML")
+        if is_battle and comp:
+            sub1, sub2 = st.tabs(["Your Item HTML", "Competitor Item HTML"])
+            with sub1:
+                html_main = render_hero_preview(main, before_main, "main")
+                st.caption("Hero section HTML code for **Your Item**:")
+                st.code(html_main, language="html")
+                st.download_button("Download Your Item HTML", data=html_main, file_name="your_hero_redesign.html", mime="text/html")
+            with sub2:
+                html_comp = render_hero_preview(comp, before_comp, "comp")
+                st.caption("Hero section HTML code for **Competitor**:")
+                st.code(html_comp, language="html")
+                st.download_button("Download Competitor HTML", data=html_comp, file_name="competitor_hero.html", mime="text/html")
+        else:
+            html_main = render_hero_preview(main, before_main, "main")
+            st.code(html_main, language="html")
+            st.download_button("Download Hero HTML", data=html_main, file_name="hero_redesign.html", mime="text/html")
