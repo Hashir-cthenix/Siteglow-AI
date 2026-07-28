@@ -8,15 +8,12 @@ from bs4 import BeautifulSoup
 import time
 import concurrent.futures
 
-# App Layout Configuration
 st.set_page_config(page_title="SiteGlow AI — Conversion & Design Engine", page_icon="⚡", layout="wide")
 
-# Modern SaaS Styling with High Contrast & Bold Typography
 st.markdown("""
 <style>
     .stApp { background-color: #090D16; color: #E2E8F0; }
     
-    /* Header Typography */
     .brand-badge {
         display: inline-block;
         background: rgba(99, 102, 241, 0.15);
@@ -33,7 +30,6 @@ st.markdown("""
     .main-title { font-size: 2.8rem; font-weight: 900; color: #FFFFFF; letter-spacing: -0.03em; margin-bottom: 6px; }
     .sub-title { font-size: 1.1rem; color: #94A3B8; margin-bottom: 28px; font-weight: 500; line-height: 1.5; }
     
-    /* Input Styling */
     .stTextArea textarea {
         background-color: #111827 !important;
         border: 1px solid #1F2937 !important;
@@ -44,7 +40,6 @@ st.markdown("""
     }
     .stTextArea textarea:focus { border-color: #6366F1 !important; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important; }
     
-    /* Button Styling */
     .stButton>button {
         width: 100%;
         border-radius: 12px;
@@ -63,7 +58,6 @@ st.markdown("""
         transform: translateY(-1px);
     }
     
-    /* Cards & Containers */
     div[data-testid="stMetricValue"] { font-size: 2.2rem !important; font-weight: 900 !important; color: #818CF8 !important; }
     
     .card-box {
@@ -147,7 +141,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Header Section
 st.markdown('<span class="brand-badge">⚡ AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
 st.markdown('<div class="main-title">SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown(
@@ -156,7 +149,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# CRO Academy
 ACADEMY_LESSONS = [
     ("🔍 Clarity", "Visitors decide whether to keep reading within seconds. If a headline describes a feature instead of the outcome, visitors leave rather than translate it."),
     ("🎁 Benefit Framing", "People buy outcomes: time saved, stress removed, revenue earned. Copy listing features reads like a catalog; copy naming transformation drives action."),
@@ -174,7 +166,6 @@ with st.expander("🎓 CRO Academy — Conversion Psychology Principles", expand
             unsafe_allow_html=True
         )
 
-# URL Parser & Scraper Logic
 def is_url_pattern(text):
     text = text.strip()
     if ' ' in text or '\n' in text:
@@ -204,42 +195,44 @@ def extract_website_content(url):
         if meta_tag and meta_tag.get('content'):
             meta_desc = meta_tag['content'].strip()
 
-        headings = [h.get_text().strip() for h in soup.find_all(['h1', 'h2']) if h.get_text().strip()]
+        h1_list = [h.get_text().strip() for h in soup.find_all('h1') if h.get_text().strip()]
+        h2_list = [h.get_text().strip() for h in soup.find_all('h2') if h.get_text().strip()]
         paragraphs = [p.get_text().strip() for p in soup.find_all('p') if p.get_text().strip()][:3]
 
-        text_content = f"Page Title: {title}\nMeta Description: {meta_desc}\nHeadings: {' | '.join(headings[:4])}\nSample Copy: {' '.join(paragraphs)}"[:1500]
-        return text_content if len(text_content) > 30 else None
+        primary_h1 = h1_list[0] if h1_list else title
+        primary_h2 = h2_list[0] if h2_list else meta_desc
+
+        text_content = f"Page Title: {title}\nPrimary H1: {primary_h1}\nPrimary H2: {primary_h2}\nMeta Description: {meta_desc}\nSample Copy: {' '.join(paragraphs)}"[:1500]
+        return {
+            "text_content": text_content if len(text_content) > 30 else None,
+            "h1": primary_h1 or title or "Original Headline",
+            "h2": primary_h2 or meta_desc or "Original Subheadline",
+            "body": meta_desc or (' '.join(paragraphs)) or "No description provided."
+        }
     except Exception:
         return None
 
 def process_input(raw_text):
-    """Returns (processed_text, is_url, error_message)"""
     text = (raw_text or "").strip()
     if is_url_pattern(text):
         full_url = normalize_url(text)
-        scraped = extract_website_content(full_url)
-        if scraped is None:
-            return None, True, f"Could not reach or scrape the URL `{full_url}`. Please verify the domain is reachable or paste product pitch text directly."
-        return scraped, True, None
-    return text, False, None
+        scraped_data = extract_website_content(full_url)
+        if scraped_data is None or scraped_data["text_content"] is None:
+            return None, True, None, f"Could not reach or scrape the URL `{full_url}`. Please verify the domain is reachable or paste plain product text directly."
+        return scraped_data["text_content"], True, scraped_data, None
+    
+    sentences = [s.strip() for s in re.split(r'[.\n]', text) if s.strip()]
+    h1 = sentences[0][:120] if sentences else (text[:120] if text else "Original Headline")
+    h2 = sentences[1][:160] if len(sentences) > 1 else "Original Subheadline / Pitch Description"
+    body = text[:280] if text else "No original copy supplied."
+    
+    structured_fallback = {
+        "h1": h1,
+        "h2": h2,
+        "body": body
+    }
+    return text, False, structured_fallback, None
 
-def build_before_snapshot(raw_input, processed_copy, is_url):
-    if is_url:
-        title_match = re.search(r'Page Title:\s*(.*)', processed_copy or "")
-        meta_match = re.search(r'Meta Description:\s*(.*)', processed_copy or "")
-        headline = title_match.group(1).strip() if title_match and title_match.group(1).strip() else "Original Headline"
-        body = meta_match.group(1).strip() if meta_match and meta_match.group(1).strip() else (processed_copy[:220] if processed_copy else "")
-    else:
-        sentences = [s.strip() for s in re.split(r'[.\n]', raw_input) if s.strip()]
-        headline = sentences[0][:120] if sentences else (raw_input[:120] if raw_input else "Original Headline")
-        body = raw_input[:280] if raw_input else "No original copy supplied."
-
-    return {"headline": headline or "Original Headline", "body": body or "No original copy supplied."}
-
-def esc(value):
-    return html_lib.escape(str(value), quote=True)
-
-# Gemini Model Helper
 def get_available_models():
     try:
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
@@ -332,11 +325,10 @@ def normalize_data(data):
     }
 
 def analyze_single_site_task(raw_input, available_models):
-    processed_text, is_url, error_msg = process_input(raw_input)
+    processed_text, is_url, structured_snap, error_msg = process_input(raw_input)
     if error_msg:
         return {"status": "error", "error": error_msg}
 
-    before_snap = build_before_snapshot(raw_input, processed_text, is_url)
     raw_data, used_model = run_gemini_analysis(processed_text, available_models)
 
     if raw_data is None:
@@ -347,7 +339,7 @@ def analyze_single_site_task(raw_input, available_models):
     return {
         "status": "success",
         "data": norm_data,
-        "before": before_snap,
+        "before": structured_snap,
         "is_url": is_url
     }
 
@@ -386,8 +378,10 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     cta_primary = esc(fields["cta_primary"])
     cta_secondary = esc(fields["cta_secondary"])
     social_proof = esc(fields["social_proof"])
-    before_headline = esc(before_snapshot["headline"])
-    before_body = esc(before_snapshot["body"])
+    
+    before_h1 = esc(before_snapshot.get("h1", "Original Headline"))
+    before_h2 = esc(before_snapshot.get("h2", "Original Subheadline"))
+    before_body = esc(before_snapshot.get("body", "Original Description"))
 
     return f"""
     <!DOCTYPE html>
@@ -414,7 +408,7 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     <body>
         <div class="max-w-4xl mx-auto mb-4 flex flex-wrap items-center justify-center gap-2">
             <button id="btn-redesign-{variant_id}" class="toolbar-btn active text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','redesign')">✨ AI Redesign</button>
-            <button id="btn-original-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','original')">📝 Original</button>
+            <button id="btn-original-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="showView('{variant_id}','original')">📝 Original Wireframe</button>
             <button id="btn-heat-{variant_id}" class="toolbar-btn text-xs font-extrabold px-4 py-2 rounded-lg" onclick="toggleHeatmap('{variant_id}')">🔥 Attention Heatmap</button>
         </div>
 
@@ -441,11 +435,14 @@ def render_hero_preview(fields, before_snapshot, variant_id):
                 </div>
             </div>
 
-            <div id="original-{variant_id}" class="relative bg-white rounded-2xl p-8 md:p-12 shadow-2xl text-center" style="font-family: Arial, sans-serif;">
-                <span class="inline-block bg-gray-100 text-gray-600 text-xs font-bold px-3 py-1 rounded mb-4 uppercase">Before — Original Input</span>
-                <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-4">{before_headline}</h1>
-                <p class="text-gray-600 text-sm md:text-base mb-6 max-w-2xl mx-auto">{before_body}</p>
-                <button class="bg-gray-800 text-white text-sm font-bold px-6 py-2.5 rounded">Submit</button>
+            <div id="original-{variant_id}" class="relative bg-slate-900 border border-slate-800 rounded-3xl p-8 md:p-12 shadow-2xl">
+                <span class="inline-block bg-slate-800 text-slate-300 text-xs font-extrabold px-3.5 py-1.5 rounded-lg mb-6 uppercase tracking-wider">Original Scraped Structure</span>
+                <h1 class="text-2xl md:text-4xl font-extrabold text-white mb-4 leading-snug">{before_h1}</h1>
+                <h2 class="text-lg md:text-xl font-semibold text-indigo-300 mb-6 leading-relaxed">{before_h2}</h2>
+                <p class="text-slate-400 text-sm md:text-base mb-8 max-w-3xl leading-relaxed">{before_body}</p>
+                <div class="pt-2">
+                    <button class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-6 py-3 rounded-xl transition-colors">Submit / Learn More</button>
+                </div>
             </div>
         </div>
 
@@ -467,12 +464,11 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     </html>
     """
 
-# Render Scorecard Functions
 def render_single_scorecard(main):
     col1, col2 = st.columns([1, 2])
     with col1:
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title"> Conversion Health</div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">Conversion Health</div>', unsafe_allow_html=True)
         st.metric("Health Score", f"{main['orig_score']} / 100")
         st.caption(f"Engine Model: `{main['used_model']}`")
         st.write("---")
@@ -488,7 +484,7 @@ def render_single_scorecard(main):
 
     with col2:
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">🔍 Conversion Diagnosis & Lessons</div>', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">Conversion Diagnosis & Lessons</div>', unsafe_allow_html=True)
         st.markdown(f"#### {get_status_badge(main['headline_flaw'])} Headline Structure", unsafe_allow_html=True)
         st.write(main["headline_flaw"])
         st.markdown(f'<div class="principle-line">🎓 <b>Principle:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
@@ -513,7 +509,7 @@ def render_battle_scorecard(main, comp):
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="card-box">', unsafe_allow_html=True)
-    st.markdown('<div class="card-title">🏆 Competitor Battle Outcome</div>', unsafe_allow_html=True)
+    st.markdown('<div class="card-title">Competitor Battle Outcome</div>', unsafe_allow_html=True)
     if winner == "yours":
         st.markdown(f'<span class="winner-badge">🏆 Your site wins by {gap} points</span>', unsafe_allow_html=True)
     elif winner == "competitor":
@@ -522,14 +518,12 @@ def render_battle_scorecard(main, comp):
         st.markdown('<span class="brand-badge">🤝 Dead heat — scores are tied</span>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Sidebar Setup
 with st.sidebar:
     st.header("⚙️ Engine Setup")
     raw_api_key = st.text_input("Enter Gemini API Key:", type="password")
     api_key = raw_api_key.strip() if raw_api_key else ""
     st.markdown("[Get a free key from Google AI Studio](https://aistudio.google.com/)")
 
-# Input Interface
 battle_mode = st.toggle("🥊 Enable Competitor CRO Battle Mode", value=False)
 
 if battle_mode:
@@ -544,7 +538,6 @@ else:
 
 analyze_button = st.button("🚀 Analyze & Auto-Redesign Live", type="primary")
 
-# Execute Parallel Analysis & Save in Session State
 if analyze_button:
     if not api_key:
         st.error("Please enter your Gemini API Key in the sidebar.")
@@ -558,7 +551,6 @@ if analyze_button:
             available_models = get_available_models()
 
             if battle_mode:
-                # Parallel execution for Battle Mode
                 with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
                     future_main = executor.submit(analyze_single_site_task, user_input, available_models)
                     future_comp = executor.submit(analyze_single_site_task, competitor_input, available_models)
@@ -579,7 +571,6 @@ if analyze_button:
                     st.session_state['battle_mode'] = True
 
             else:
-                # Single site execution
                 res_main = analyze_single_site_task(user_input, available_models)
                 if res_main["status"] == "error":
                     st.error(f"❌ Error: {res_main['error']}")
@@ -591,7 +582,6 @@ if analyze_button:
                     st.session_state['before_comp'] = None
                     st.session_state['battle_mode'] = False
 
-# Render Results from Session State
 if st.session_state.get('has_data', False):
     main = st.session_state['main']
     before_main = st.session_state['before_main']
