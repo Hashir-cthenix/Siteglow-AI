@@ -127,17 +127,68 @@ st.markdown("""
         font-size: 0.85rem;
         font-weight: 700;
     }
+
+    /* CRO Academy */
+    .lesson-card {
+        background: #131927;
+        border: 1px solid #1E293B;
+        border-left: 3px solid #6366F1;
+        border-radius: 10px;
+        padding: 16px 18px;
+        margin-bottom: 12px;
+    }
+    .lesson-title { color: #A5B4FC; font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; }
+    .lesson-body { color: #CBD5E1; font-size: 0.88rem; line-height: 1.5; }
+    .principle-line {
+        background: rgba(99, 102, 241, 0.08);
+        border: 1px dashed rgba(99, 102, 241, 0.35);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        color: #C7D2FE;
+        margin-top: 6px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # Header Section
-st.markdown('<span class="brand-badge">⚡ Next-Gen Conversion Engine</span>', unsafe_allow_html=True)
+st.markdown('<span class="brand-badge">⚡ AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
 st.markdown('<div class="main-title">SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="sub-title">Instant CRO Audit, Psychological Friction Diagnosis, Competitor Battle Mode '
-    '& Live Attention-Heatmap Hero Generator</div>',
+    '<div class="sub-title">Diagnoses real websites, rewrites them into high-converting heroes, and teaches '
+    'the conversion psychology behind every fix — with Competitor Battle Mode & a live Attention-Heatmap Lab.</div>',
     unsafe_allow_html=True
 )
+
+# ──────────────────────────────────────────────────────────────────────────
+# CRO Academy — static, always-visible teaching section (no API key needed)
+# ──────────────────────────────────────────────────────────────────────────
+ACADEMY_LESSONS = [
+    ("🔍 Clarity", "Visitors decide whether to keep reading within seconds. If a headline describes a "
+     "feature instead of the outcome a person gets, the brain has to do extra translation work — and most "
+     "people simply leave instead of doing it."),
+    ("🎁 Benefit Framing", "People don't buy tools, they buy outcomes: time saved, stress removed, money "
+     "earned. Copy that lists specs reads as a catalog; copy that names the transformation reads as a reason "
+     "to act."),
+    ("⏳ Urgency & Scarcity", "Decision-making research (popularized by Robert Cialdini's work on persuasion) "
+     "shows people act faster when a moment feels limited or timely. A generic 'Submit' button asks for effort "
+     "with nothing in return; a specific, time-bound CTA gives a reason to click now."),
+    ("🧠 Cognitive Friction", "Every extra decision, unclear label, or vague next step adds mental load. Lower "
+     "friction doesn't mean fewer words — it means the next step is obvious at a glance."),
+    ("👁️ Visual Attention (F-Pattern)", "Eye-tracking studies from researchers like Nielsen Norman Group have "
+     "repeatedly found that visitors scan pages in predictable patterns, spending most of their attention on "
+     "the headline and hero area before decaying sharply. That's the real research behind this tool's simulated "
+     "heatmap."),
+]
+
+with st.expander("🎓 CRO Academy — The Psychology Powering This Tool (start here, no API key needed)", expanded=False):
+    st.caption("SiteGlow AI isn't just a scoring tool — it's built to teach you *why* each principle below moves the needle, then shows the fix on your own copy.")
+    for title, body in ACADEMY_LESSONS:
+        st.markdown(
+            f'<div class="lesson-card"><div class="lesson-title">{title}</div>'
+            f'<div class="lesson-body">{body}</div></div>',
+            unsafe_allow_html=True
+        )
 
 # ──────────────────────────────────────────────────────────────────────────
 # Helper Function: Web Scraper for Live URLs
@@ -224,6 +275,9 @@ def build_prompt(processed_copy):
     2. If an element (Headline, Value Prop, CTA) is ALREADY exceptional, set flaw text starting with "None — " (e.g., "None — Headline is outcome-focused and high-impact.").
     3. Rewrite the messaging into a stunning, ultra-high-converting Hero block section.
     4. Provide detailed rating scores (0-100) for Clarity, Urgency, Benefit Alignment, and Friction.
+    5. You are also acting as a CRO TUTOR. For each flaw, alongside the flaw text, provide a one-sentence
+       "lesson" field explaining the general psychological or UX principle at play — written so a beginner
+       marketer would learn something transferable, not just get a fix for this one page.
 
     Return ONLY a JSON object strictly matching this schema:
     {{
@@ -233,8 +287,11 @@ def build_prompt(processed_copy):
         "benefit_score": 40,
         "friction_score": 80,
         "headline_flaw": "Describes what you built (a commodity feature) instead of what the user gains.",
+        "headline_lesson": "Headlines convert better when they state the outcome the reader gets, not the feature you shipped.",
         "value_prop_flaw": "Lacks specific outcome metrics, time-saved claims, or emotional transformation.",
+        "value_prop_lesson": "Specific, quantified outcomes are more persuasive than vague claims because they feel provable.",
         "cta_flaw": "Generic, low-urgency button text with zero value proposition.",
+        "cta_lesson": "A CTA that names the next concrete step and a reason to act now outperforms passive verbs like 'Submit'.",
         "badge_text": "AUTOMATED WORKFLOWS",
         "social_proof": "⚡ Trusted by 10,000+ high-growth teams",
         "rewritten_headline": "Bring Your Remote Team into Perfect Alignment",
@@ -291,8 +348,11 @@ def normalize_data(data):
         "benefit": data.get("benefit_score", 50),
         "friction": data.get("friction_score", 70),
         "headline_flaw": data.get("headline_flaw", "Focuses on internal building process rather than external results."),
+        "headline_lesson": data.get("headline_lesson", "Headlines convert better when they state the outcome the reader gets, not the feature you shipped."),
         "value_flaw": data.get("value_prop_flaw", "Lists commodity features without highlighting emotional stakes."),
+        "value_lesson": data.get("value_prop_lesson", "Specific, quantified outcomes are more persuasive than vague claims because they feel provable."),
         "cta_flaw": data.get("cta_flaw", "Low-energy CTA with minimal incentive to click."),
+        "cta_lesson": data.get("cta_lesson", "A CTA that names the next concrete step and a reason to act now outperforms passive verbs like 'Submit'."),
         "badge": data.get("badge_text", "AI WORKFLOW ENGINE"),
         "social_proof": data.get("social_proof", "⚡ Loved by 5,000+ founders"),
         "headline": data.get("rewritten_headline", "Eliminate Chaos & Scale Execution"),
@@ -336,9 +396,12 @@ def compute_winner(main, comp):
             side_winner = "yours" if m_val > c_val else ("competitor" if c_val > m_val else "tie")
         else:
             side_winner = "yours" if m_val < c_val else ("competitor" if c_val < m_val else "tie")
-        breakdown.append((label, m_val, c_val, side_winner))
+        metric_gap = abs(m_val - c_val)
+        breakdown.append((label, m_val, c_val, side_winner, metric_gap))
 
-    return winner, gap, breakdown
+    biggest = max(breakdown, key=lambda row: row[4]) if breakdown else None
+
+    return winner, gap, breakdown, biggest
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -513,14 +576,17 @@ def render_single_scorecard(main):
 
         st.markdown(f"#### {get_status_badge(main['headline_flaw'])} Headline Structure", unsafe_allow_html=True)
         st.write(main["headline_flaw"])
+        st.markdown(f'<div class="principle-line">🎓 <b>Principle:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
         st.write("---")
 
         st.markdown(f"#### {get_status_badge(main['value_flaw'])} Value Proposition & Benefits", unsafe_allow_html=True)
         st.write(main["value_flaw"])
+        st.markdown(f'<div class="principle-line">🎓 <b>Principle:</b> {esc(main["value_lesson"])}</div>', unsafe_allow_html=True)
         st.write("---")
 
         st.markdown(f"#### {get_status_badge(main['cta_flaw'])} Call-To-Action (CTA)", unsafe_allow_html=True)
         st.write(main["cta_flaw"])
+        st.markdown(f'<div class="principle-line">🎓 <b>Principle:</b> {esc(main["cta_lesson"])}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -535,8 +601,17 @@ def render_mini_breakdown(label_prefix, data):
     st.progress(data["friction"] / 100)
 
 
+METRIC_LESSON_MAP = {
+    "Message Clarity": "headline_lesson",
+    "Benefit Alignment": "value_lesson",
+    "CTA Urgency": "cta_lesson",
+}
+FRICTION_FALLBACK_LESSON = ("Lower friction doesn't mean fewer words — it means the next step is obvious at a "
+                             "glance, with nothing making a visitor pause to figure out what to do.")
+
+
 def render_battle_scorecard(main, comp):
-    winner, gap, breakdown = compute_winner(main, comp)
+    winner, gap, breakdown, biggest = compute_winner(main, comp)
 
     col1, col2 = st.columns(2)
 
@@ -571,7 +646,7 @@ def render_battle_scorecard(main, comp):
         st.markdown('<span class="tag-pill">🤝 Dead heat — scores are tied</span>', unsafe_allow_html=True)
 
     st.write("")
-    for label, m_val, c_val, side_winner in breakdown:
+    for label, m_val, c_val, side_winner, _metric_gap in breakdown:
         if side_winner == "yours":
             icon = "🟦"
         elif side_winner == "competitor":
@@ -580,17 +655,35 @@ def render_battle_scorecard(main, comp):
             icon = "⚪"
         st.write(f"{icon} **{label}** — Yours: `{m_val}` · Competitor: `{c_val}`")
 
+    # Synthesized teaching takeaway from whichever metric had the widest gap — no extra API call
+    if biggest is not None and biggest[3] != "tie":
+        label, m_val, c_val, side_winner, _gap_val = biggest
+        source_data = main if side_winner == "yours" else comp
+        lesson_key = METRIC_LESSON_MAP.get(label)
+        lesson_text = source_data.get(lesson_key, FRICTION_FALLBACK_LESSON) if lesson_key else FRICTION_FALLBACK_LESSON
+        st.markdown(
+            f'<div class="principle-line">🎓 <b>Key Lesson:</b> the widest gap was in <b>{esc(label)}</b> — '
+            f'{esc(lesson_text)}</div>',
+            unsafe_allow_html=True
+        )
+
     st.markdown('</div>', unsafe_allow_html=True)
 
-    with st.expander("🔍 Full Flaw Diagnosis — Your Site"):
+    with st.expander("🔍 Full Flaw Diagnosis & Principles — Your Site"):
         st.markdown(f"**Headline:** {main['headline_flaw']}")
+        st.caption(f"🎓 {main['headline_lesson']}")
         st.markdown(f"**Value Proposition:** {main['value_flaw']}")
+        st.caption(f"🎓 {main['value_lesson']}")
         st.markdown(f"**CTA:** {main['cta_flaw']}")
+        st.caption(f"🎓 {main['cta_lesson']}")
 
-    with st.expander("🔍 Full Flaw Diagnosis — Competitor"):
+    with st.expander("🔍 Full Flaw Diagnosis & Principles — Competitor"):
         st.markdown(f"**Headline:** {comp['headline_flaw']}")
+        st.caption(f"🎓 {comp['headline_lesson']}")
         st.markdown(f"**Value Proposition:** {comp['value_flaw']}")
+        st.caption(f"🎓 {comp['value_lesson']}")
         st.markdown(f"**CTA:** {comp['cta_flaw']}")
+        st.caption(f"🎓 {comp['cta_lesson']}")
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -603,8 +696,7 @@ with st.sidebar:
     st.markdown("[Get a free key from Google AI Studio](https://aistudio.google.com/)")
     st.divider()
     st.caption("Powered by Gemini 3.6 Flash Engine")
-    st.caption("Prometheus AI Challenge")
-    st.caption("🥊 Battle Mode · 🔥 Attention Heatmap · 📝 Before/After")
+    st.caption("🎓 CRO Tutor · 🥊 Battle Mode · 🔥 Attention Heatmap · 📝 Before/After")
 
 # ──────────────────────────────────────────────────────────────────────────
 # Input Interface
