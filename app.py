@@ -365,6 +365,9 @@ def run_gemini_analysis(processed_copy, is_url_source, available_models):
             if response and response.text:
                 clean_text = clean_json_response(response.text)
                 data = json.loads(clean_text)
+                if not isinstance(data, dict):
+                    # Model returned valid JSON but not an object (e.g. a list or bare value) — not usable, try the next model.
+                    continue
                 return data, model_name
         except Exception:
             time.sleep(0.5)
@@ -372,6 +375,10 @@ def run_gemini_analysis(processed_copy, is_url_source, available_models):
     return None, None
 
 def normalize_data(data):
+    if not isinstance(data, dict):
+        # Defensive fallback: never let a non-dict reach .get() calls below, even if something upstream changes.
+        data = {}
+
     try:
         orig_score = round(float(data.get("original_score", 65.0)), 1)
     except Exception:
@@ -409,8 +416,12 @@ def analyze_single_site_task(raw_input, available_models):
     if raw_data is None:
         return {"status": "error", "error": "Gemini API failed to return structured CRO analysis. Please check your key or rate limits."}
 
-    norm_data = normalize_data(raw_data)
-    norm_data["used_model"] = used_model
+    try:
+        norm_data = normalize_data(raw_data)
+        norm_data["used_model"] = used_model
+    except Exception as e:
+        return {"status": "error", "error": f"Received an unexpected response shape from the AI engine ({type(e).__name__}). Please try again."}
+
     return {
         "status": "success",
         "data": norm_data,
