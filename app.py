@@ -140,6 +140,29 @@ st.markdown("""
         margin-top: 8px;
         font-weight: 500;
     }
+
+    /* Self-contained score card pieces (built as one HTML block, not split across widgets) */
+    .score-value { font-size: 2.4rem; font-weight: 900; color: #818CF8; line-height: 1.1; margin: 4px 0 2px 0; }
+    .score-sub { font-size: 0.85rem; color: #94A3B8; margin-bottom: 14px; }
+    .model-caption { font-size: 0.78rem; color: #6B7280; font-family: monospace; margin-bottom: 14px; }
+    .metric-row { margin-bottom: 12px; }
+    .metric-label { font-size: 0.9rem; color: #E5E7EB; font-weight: 600; margin-bottom: 4px; }
+    .bar-track { background: #1F2937; border-radius: 999px; height: 9px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #4F46E5, #A855F7); }
+    .status-optimal { color: #34D399; font-weight: 800; }
+    .status-flaw { color: #F87171; font-weight: 800; }
+    .diagnosis-heading { font-size: 1.05rem; font-weight: 800; color: #F3F4F6; margin: 14px 0 4px 0; }
+    .diagnosis-body { color: #D1D5DB; font-size: 0.92rem; margin-bottom: 4px; }
+    .callout-banner {
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+    .callout-success { background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); color: #6EE7B7; }
+    .callout-info { background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.35); color: #A5B4FC; }
+    .callout-warning { background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #FCD34D; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -398,8 +421,28 @@ def analyze_single_site_task(raw_input, available_models):
 def get_status_badge(flaw_text):
     clean = str(flaw_text).strip().lower()
     if clean.startswith("none") or clean.startswith("optimal") or "strong" in clean or "excellent" in clean:
-        return "<span style='color:#34D399; font-weight:800;'>[Optimal]</span>"
-    return "<span style='color:#F87171; font-weight:800;'>[Flaw Detected]</span>"
+        return "<span class='status-optimal'>[Optimal]</span>"
+    return "<span class='status-flaw'>[Flaw Detected]</span>"
+
+
+def html_bar(label, value):
+    """One self-contained metric row (label + progress bar) as a single HTML fragment."""
+    pct = max(0, min(100, value))
+    return (
+        f'<div class="metric-row">'
+        f'<div class="metric-label">{esc(label)}: {value}/100</div>'
+        f'<div class="bar-track"><div class="bar-fill" style="width:{pct}%;"></div></div>'
+        f'</div>'
+    )
+
+
+def html_diagnosis_block(heading, flaw_text, lesson_text):
+    """One self-contained flaw + plain-language principle block."""
+    return (
+        f'<div class="diagnosis-heading">{get_status_badge(flaw_text)} {esc(heading)}</div>'
+        f'<div class="diagnosis-body">{esc(flaw_text)}</div>'
+        f'<div class="principle-line"><b>Why it matters:</b> {esc(lesson_text)}</div>'
+    )
 
 def compute_winner(main, comp):
     main_score = main["orig_score"]
@@ -592,60 +635,134 @@ def render_hero_preview(fields, before_snapshot, variant_id):
 def render_single_scorecard(main):
     col1, col2 = st.columns([1, 2])
     with col1:
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">Conversion Health</div>', unsafe_allow_html=True)
-        st.metric("Health Score", f"{main['orig_score']} / 100")
-        st.caption(f"Engine Model: `{main['used_model']}`")
-        st.write("---")
-        st.write(f"**How Easy Is It To Understand?** {main['clarity']}/100")
-        st.progress(main["clarity"] / 100)
-        st.write(f"**How Clear Is The Benefit?** {main['benefit']}/100")
-        st.progress(main["benefit"] / 100)
-        st.write(f"**How Much Does It Make People Act Now?** {main['urgency']}/100")
-        st.progress(main["urgency"] / 100)
-        st.write(f"**How Easy To Take Action? (lower friction is better)** {main['friction']}/100")
-        st.progress(main["friction"] / 100)
-        st.markdown('</div>', unsafe_allow_html=True)
+        if main["orig_score"] >= 82.0:
+            callout = '<div class="callout-banner callout-success">🎉 High-Converting! Clear positioning with strong user value.</div>'
+        elif main["orig_score"] >= 60.0:
+            callout = '<div class="callout-banner callout-info">💡 Good Foundation. A few tweaks would remove hesitation.</div>'
+        else:
+            callout = '<div class="callout-banner callout-warning">⚠️ High Bounce Risk. Feels feature-first, not outcome-first.</div>'
+
+        left_card = (
+            '<div class="card-box">'
+            '<div class="card-title">Conversion Health</div>'
+            f'<div class="score-value">{main["orig_score"]} / 100</div>'
+            '<div class="score-sub">Overall Score</div>'
+            f'<div class="model-caption">Engine Model: {esc(main["used_model"])}</div>'
+            f'{callout}'
+            f'{html_bar("How Easy Is It To Understand?", main["clarity"])}'
+            f'{html_bar("How Clear Is The Benefit?", main["benefit"])}'
+            f'{html_bar("How Much Does It Make People Act Now?", main["urgency"])}'
+            f'{html_bar("How Easy To Take Action? (lower friction is better)", main["friction"])}'
+            '</div>'
+        )
+        st.markdown(left_card, unsafe_allow_html=True)
 
     with col2:
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown('<div class="card-title">What We Found — And Why It Matters</div>', unsafe_allow_html=True)
-        st.markdown(f"#### {get_status_badge(main['headline_flaw'])} Your Headline (First Impression)", unsafe_allow_html=True)
-        st.write(main["headline_flaw"])
-        st.markdown(f'<div class="principle-line"><b>Why it matters:</b> {esc(main["headline_lesson"])}</div>', unsafe_allow_html=True)
-        st.write("---")
-        st.markdown(f"#### {get_status_badge(main['value_flaw'])} Your Offer (What They Get)", unsafe_allow_html=True)
-        st.write(main["value_flaw"])
-        st.markdown(f'<div class="principle-line"><b>Why it matters:</b> {esc(main["value_lesson"])}</div>', unsafe_allow_html=True)
-        st.write("---")
-        st.markdown(f"#### {get_status_badge(main['cta_flaw'])} Your Call-to-Action (The Button)", unsafe_allow_html=True)
-        st.write(main["cta_flaw"])
-        st.markdown(f'<div class="principle-line"><b>Why it matters:</b> {esc(main["cta_lesson"])}</div>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        right_card = (
+            '<div class="card-box">'
+            '<div class="card-title">What We Found — And Why It Matters</div>'
+            f'{html_diagnosis_block("Your Headline (First Impression)", main["headline_flaw"], main["headline_lesson"])}'
+            '<hr style="border-color:#1F2937; margin:14px 0;">'
+            f'{html_diagnosis_block("Your Offer (What They Get)", main["value_flaw"], main["value_lesson"])}'
+            '<hr style="border-color:#1F2937; margin:14px 0;">'
+            f'{html_diagnosis_block("Your Call-to-Action (The Button)", main["cta_flaw"], main["cta_lesson"])}'
+            '</div>'
+        )
+        st.markdown(right_card, unsafe_allow_html=True)
+
+METRIC_LESSON_MAP = {
+    "Message Clarity": "headline_lesson",
+    "Benefit Alignment": "value_lesson",
+    "CTA Urgency": "cta_lesson",
+}
+FRICTION_FALLBACK_LESSON = ("Lower friction doesn't mean fewer words — it means the next step is obvious at a "
+                             "glance, with nothing making a visitor pause to figure out what to do.")
+
 
 def render_battle_scorecard(main, comp):
     winner, gap, breakdown = compute_winner(main, comp)
+
     col1, col2 = st.columns(2)
     with col1:
         st.markdown('<span class="site-label-blue">YOUR ITEM</span>', unsafe_allow_html=True)
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.metric("Score", f"{main['orig_score']} / 100")
-        st.markdown('</div>', unsafe_allow_html=True)
+        card_main = (
+            '<div class="card-box">'
+            f'<div class="score-value">{main["orig_score"]} / 100</div>'
+            '<div class="score-sub">Overall Score</div>'
+            f'<div class="model-caption">Engine Model: {esc(main["used_model"])}</div>'
+            f'{html_bar("How Easy Is It To Understand?", main["clarity"])}'
+            f'{html_bar("How Clear Is The Benefit?", main["benefit"])}'
+            f'{html_bar("How Much Does It Make People Act Now?", main["urgency"])}'
+            f'{html_bar("How Easy To Take Action? (lower friction is better)", main["friction"])}'
+            '</div>'
+        )
+        st.markdown(card_main, unsafe_allow_html=True)
+
     with col2:
         st.markdown('<span class="site-label-red">COMPETITOR</span>', unsafe_allow_html=True)
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.metric("Score", f"{comp['orig_score']} / 100")
-        st.markdown('</div>', unsafe_allow_html=True)
+        card_comp = (
+            '<div class="card-box">'
+            f'<div class="score-value">{comp["orig_score"]} / 100</div>'
+            '<div class="score-sub">Overall Score</div>'
+            f'<div class="model-caption">Engine Model: {esc(comp["used_model"])}</div>'
+            f'{html_bar("How Easy Is It To Understand?", comp["clarity"])}'
+            f'{html_bar("How Clear Is The Benefit?", comp["benefit"])}'
+            f'{html_bar("How Much Does It Make People Act Now?", comp["urgency"])}'
+            f'{html_bar("How Easy To Take Action? (lower friction is better)", comp["friction"])}'
+            '</div>'
+        )
+        st.markdown(card_comp, unsafe_allow_html=True)
 
-    st.markdown('<div class="card-box">', unsafe_allow_html=True)
-    st.markdown('<div class="card-title">Competitor Battle Outcome</div>', unsafe_allow_html=True)
     if winner == "yours":
-        st.markdown(f'<span class="winner-badge">Your site/pitch wins by {gap} points</span>', unsafe_allow_html=True)
+        winner_html = f'<span class="winner-badge">🏆 Your site/pitch wins by {gap} points</span>'
     elif winner == "competitor":
-        st.markdown(f'<span class="loser-badge">Competitor leads by {gap} points</span>', unsafe_allow_html=True)
+        winner_html = f'<span class="loser-badge">⚠️ Competitor leads by {gap} points</span>'
     else:
-        st.markdown('<span class="brand-badge">Dead heat — scores are tied</span>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        winner_html = '<span class="brand-badge">🤝 Dead heat — scores are tied</span>'
+
+    row_parts = []
+    for label, m_val, c_val, side_winner, _gap_val in breakdown:
+        icon = "🟦" if side_winner == "yours" else ("🟥" if side_winner == "competitor" else "⚪")
+        row_parts.append(f'<div class="diagnosis-body">{icon} <b>{esc(label)}</b> — Yours: {m_val} · Competitor: {c_val}</div>')
+    rows_html = "".join(row_parts)
+
+    key_lesson_html = ""
+    non_tied = [row for row in breakdown if row[3] != "tie"]
+    if non_tied:
+        biggest_label, biggest_m, biggest_c, biggest_winner, _ = max(non_tied, key=lambda row: row[4])
+        source_data = main if biggest_winner == "yours" else comp
+        lesson_key = METRIC_LESSON_MAP.get(biggest_label)
+        lesson_text = source_data.get(lesson_key, FRICTION_FALLBACK_LESSON) if lesson_key else FRICTION_FALLBACK_LESSON
+        key_lesson_html = (
+            f'<div class="principle-line">🎓 <b>Key Lesson:</b> the widest gap was in <b>{esc(biggest_label)}</b> — '
+            f'{esc(lesson_text)}</div>'
+        )
+
+    outcome_card = (
+        '<div class="card-box">'
+        '<div class="card-title">Competitor Battle Outcome</div>'
+        f'{winner_html}'
+        f'<div style="margin-top:14px;">{rows_html}</div>'
+        f'{key_lesson_html}'
+        '</div>'
+    )
+    st.markdown(outcome_card, unsafe_allow_html=True)
+
+    with st.expander("🔍 Full Diagnosis — Your Site"):
+        st.markdown(f"**Your Headline (First Impression):** {main['headline_flaw']}")
+        st.caption(f"Why it matters: {main['headline_lesson']}")
+        st.markdown(f"**Your Offer (What They Get):** {main['value_flaw']}")
+        st.caption(f"Why it matters: {main['value_lesson']}")
+        st.markdown(f"**Your Call-to-Action (The Button):** {main['cta_flaw']}")
+        st.caption(f"Why it matters: {main['cta_lesson']}")
+
+    with st.expander("🔍 Full Diagnosis — Competitor"):
+        st.markdown(f"**Their Headline (First Impression):** {comp['headline_flaw']}")
+        st.caption(f"Why it matters: {comp['headline_lesson']}")
+        st.markdown(f"**Their Offer (What They Get):** {comp['value_flaw']}")
+        st.caption(f"Why it matters: {comp['value_lesson']}")
+        st.markdown(f"**Their Call-to-Action (The Button):** {comp['cta_flaw']}")
+        st.caption(f"Why it matters: {comp['cta_lesson']}")
 
 # Sidebar
 with st.sidebar:
