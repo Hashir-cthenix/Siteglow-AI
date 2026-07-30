@@ -167,7 +167,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown('<span class="brand-badge">AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
+st.markdown('<span class="brand-badge">⚡ AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
 st.markdown('<div class="main-title">SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="sub-title">Diagnoses website copy and pitch text, rewrites hero sections into high-converting layouts, and teaches '
@@ -286,14 +286,17 @@ def get_available_models_cached(api_key):
     try:
         all_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
         priority_list = [
+            "models/gemini-3.6-flash",
+            "models/gemini-3.5-flash-lite",
+            "models/gemini-3.5-flash",
+            "models/gemini-2.5-flash",
             "models/gemini-3.1-pro",
             "models/gemini-2.5-pro",
-            "models/gemini-2.5-flash",
         ]
         available = [m for m in priority_list if m in all_models] + [m for m in all_models if m not in priority_list]
-        return available if available else ["models/gemini-1.5-flash"]
+        return available if available else ["models/gemini-3.5-flash-lite"]
     except Exception:
-        return ["models/gemini-1.5-flash"]
+        return ["models/gemini-3.5-flash-lite"]
 
 def get_execution_message(user_in, comp_in="", is_battle=False):
     u_is_url = is_url_pattern(user_in)
