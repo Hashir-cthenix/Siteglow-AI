@@ -167,7 +167,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown('<span class="brand-badge">AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
+st.markdown('<span class="brand-badge">⚡ AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
 st.markdown('<div class="main-title">SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="sub-title">Diagnoses website copy and pitch text, rewrites hero sections into high-converting layouts, and teaches '
@@ -328,6 +328,14 @@ def build_prompt(processed_copy, is_url_source=False):
     6. Rewrite the messaging into an elite, high-converting Hero Block section (Badge, Headline, Subheadline, Primary CTA, Secondary CTA, Social Proof).
     7. Also write a SECOND, genuinely different hero tagline (a different emotional angle — e.g. speed vs. trust vs. simplicity vs. ambition).
        Both taglines must be equally strong and usable on their own; the second is an alternative angle, not a weaker backup.
+    8. Act as a real eye-tracking / attention-mapping analyst. Estimate how visitor attention would realistically distribute across the
+       REWRITTEN hero's four zones — Headline, Subheadline, Primary CTA, Social Proof — based on THIS SPECIFIC copy's length, specificity,
+       contrast and action-orientation. This must NOT be a fixed template split; it must genuinely vary with the copy:
+       - A short, punchy, high-contrast headline paired with a weak/generic CTA should skew heavily toward headline attention.
+       - A longer headline paired with a sharp, specific, action-verb CTA should show more balanced or CTA-leaning attention.
+       - Strong quantified social proof (numbers, named counts) earns more attention share than vague/absent proof.
+       The four attention_*_pct values MUST be integers that sum to exactly 100.
+       Provide a 2-3 sentence attention_rationale grounded in the specific words you wrote (not generic CRO theory).
 
     Return ONLY valid JSON matching this exact schema (no markdown formatting):
     {{
@@ -349,7 +357,12 @@ def build_prompt(processed_copy, is_url_source=False):
         "alt_headline": "The Fastest Way Your Team Ships Without the Chaos",
         "alt_subheadline": "A different angle on the same promise — for teams who'd rather move fast than manage more tools.",
         "cta_primary": "Start Free 14-Day Trial",
-        "cta_secondary": "Watch 2-Min Demo"
+        "cta_secondary": "Watch 2-Min Demo",
+        "attention_headline_pct": 44,
+        "attention_subheadline_pct": 16,
+        "attention_cta_pct": 29,
+        "attention_proof_pct": 11,
+        "attention_rationale": "The headline leads with a concrete outcome in high-contrast type, so it captures the dominant share of first-glance attention. The CTA uses a specific, urgent action verb rather than a generic label, pulling meaningfully above baseline. The subheadline and social proof receive brief dwell time typical of F-pattern scan decay."
     }}
     """
 
@@ -374,6 +387,39 @@ def run_gemini_analysis(processed_copy, is_url_source, available_models):
             continue
     return None, None
 
+def compute_fallback_attention(headline, subheadline, cta_primary, social_proof):
+    """
+    Content-aware fallback attention split. Only used if the AI response is missing/invalid
+    attention fields — but it still reads the ACTUAL generated copy rather than returning a
+    fixed constant, so the heatmap never collapses back to a single hardcoded split.
+    """
+    headline = headline or ""
+    subheadline = subheadline or ""
+    cta_primary = cta_primary or ""
+    social_proof = social_proof or ""
+
+    h_words = max(len(headline.split()), 1)
+    sh_words = max(len(subheadline.split()), 1)
+    cta_words = max(len(cta_primary.split()), 1)
+
+    strong_cta_verbs = ["free", "now", "start", "get", "instant", "today", "try", "join", "claim", "unlock"]
+    cta_has_urgency = any(w in cta_primary.lower() for w in strong_cta_verbs)
+    proof_has_numbers = bool(re.search(r'\d', social_proof))
+
+    # Shorter, punchier headlines dominate attention more; long headlines dilute it.
+    headline_w = 46 - min(h_words, 16) * 1.3
+    subheadline_w = 11 + min(sh_words, 20) * 0.35
+    cta_w = 18 + (9 if cta_has_urgency else 0) - min(cta_words, 6) * 0.6
+    proof_w = 8 + (6 if proof_has_numbers else 0) + min(len(social_proof) // 15, 4)
+
+    weights = [max(headline_w, 8), max(subheadline_w, 6), max(cta_w, 8), max(proof_w, 5)]
+    total = sum(weights)
+    pcts = [round(w / total * 100) for w in weights]
+    diff = 100 - sum(pcts)
+    pcts[0] += diff  # correct rounding drift on the dominant zone
+    return pcts  # [headline_pct, subheadline_pct, cta_pct, proof_pct]
+
+
 def normalize_data(data):
     if not isinstance(data, dict):
         # Defensive fallback: never let a non-dict reach .get() calls below, even if something upstream changes.
@@ -383,6 +429,43 @@ def normalize_data(data):
         orig_score = round(float(data.get("original_score", 65.0)), 1)
     except Exception:
         orig_score = 65.0
+
+    final_headline = data.get("rewritten_headline", "Eliminate Chaos & Scale Execution")
+    final_subheadline = data.get("rewritten_subheadline", "Streamline collaboration with an intelligent workspace.")
+    final_cta_primary = data.get("cta_primary", "Get Started Free")
+    final_social_proof = data.get("social_proof", "Loved by 5,000+ founders")
+
+    def _as_float(val):
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return None
+
+    raw_pcts = [
+        _as_float(data.get("attention_headline_pct")),
+        _as_float(data.get("attention_subheadline_pct")),
+        _as_float(data.get("attention_cta_pct")),
+        _as_float(data.get("attention_proof_pct")),
+    ]
+
+    valid = (
+        all(p is not None for p in raw_pcts)
+        and all(p >= 0 for p in raw_pcts)
+        and 85 <= sum(raw_pcts) <= 115
+    )
+
+    if valid:
+        total = sum(raw_pcts)
+        attn_pcts = [round(p / total * 100) for p in raw_pcts]
+        drift = 100 - sum(attn_pcts)
+        attn_pcts[0] += drift
+    else:
+        attn_pcts = compute_fallback_attention(final_headline, final_subheadline, final_cta_primary, final_social_proof)
+
+    attn_rationale = data.get("attention_rationale") or (
+        "Estimated from this copy's headline length, CTA specificity, and social-proof strength "
+        "(fallback heuristic — the AI engine didn't return an attention rationale for this run)."
+    )
 
     return {
         "orig_score": orig_score,
@@ -398,12 +481,17 @@ def normalize_data(data):
         "cta_lesson": data.get("cta_lesson", "Specific action verbs outperform passive CTA copy."),
         "badge": data.get("badge_text", "AI WORKFLOW ENGINE"),
         "social_proof": data.get("social_proof", "Loved by 5,000+ founders"),
-        "headline": data.get("rewritten_headline", "Eliminate Chaos & Scale Execution"),
-        "subheadline": data.get("rewritten_subheadline", "Streamline collaboration with an intelligent workspace."),
+        "headline": final_headline,
+        "subheadline": final_subheadline,
         "alt_headline": data.get("alt_headline", "The Smarter Way To Get This Done"),
         "alt_subheadline": data.get("alt_subheadline", "A different angle on the same promise — built for people who want results, not more busywork."),
-        "cta_primary": data.get("cta_primary", "Get Started Free"),
+        "cta_primary": final_cta_primary,
         "cta_secondary": data.get("cta_secondary", "View Live Demo"),
+        "attn_headline": attn_pcts[0],
+        "attn_subheadline": attn_pcts[1],
+        "attn_cta": attn_pcts[2],
+        "attn_proof": attn_pcts[3],
+        "attn_rationale": attn_rationale,
     }
 
 def analyze_single_site_task(raw_input, available_models):
@@ -476,7 +564,33 @@ def compute_winner(main, comp):
 
     return winner, gap, breakdown
 
-def render_hero_preview(fields, before_snapshot, variant_id):
+def heat_zone_markup(zone_id, top_pct, pct_value, rgb, label_text):
+    """
+    Builds one heatmap zone (glow blob + % label) whose SIZE, INTENSITY, and displayed
+    percentage all scale with the actual attention share for this specific copy —
+    instead of a fixed blob at a fixed percentage.
+    """
+    pct_value = max(0, min(100, pct_value))
+    width = round(42 + (pct_value / 100) * 46, 1)     # 42% - 88% wide
+    height = round(10 + (pct_value / 100) * 24, 1)     # 10% - 34% tall
+    opacity = round(0.22 + (pct_value / 100) * 0.55, 2)  # 0.22 - 0.77
+    left = round((100 - width) / 2, 1)
+    r, g, b = rgb
+
+    zone_div = (
+        f'<div class="heat-zone" data-zone="{zone_id}" '
+        f'style="top:{top_pct}%; left:{left}%; width:{width}%; height:{height}%; '
+        f'background:radial-gradient(ellipse at center, rgba({r},{g},{b},{opacity}), rgba({r},{g},{b},0) 70%);"></div>'
+    )
+    label_span = (
+        f'<span class="heat-label" style="top:{top_pct + height / 2 - 2}%; left:50%; transform:translateX(-50%); '
+        f'color:rgb({min(r+40,255)},{min(g+60,255)},{min(b+60,255)});">'
+        f'<span class="dot" style="background:rgb({r},{g},{b});"></span> {pct_value}% {esc(label_text)}</span>'
+    )
+    return zone_div + label_span
+
+
+def render_hero_preview(fields, variant_id):
     badge = esc(fields["badge"])
     headline = esc(fields["headline"])
     subheadline = esc(fields["subheadline"])
@@ -485,10 +599,12 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     cta_primary = esc(fields["cta_primary"])
     cta_secondary = esc(fields["cta_secondary"])
     social_proof = esc(fields["social_proof"])
-    
-    before_h1 = esc(before_snapshot.get("h1", "Original Headline"))
-    before_h2 = esc(before_snapshot.get("h2", "Original Subheadline"))
-    before_body = esc(before_snapshot.get("body", "Original Description"))
+    attn_rationale = esc(fields.get("attn_rationale", ""))
+
+    heat_headline = heat_zone_markup("headline", 8, fields.get("attn_headline", 40), (239, 68, 68), "Headline Focus")
+    heat_subheadline = heat_zone_markup("subheadline", 40, fields.get("attn_subheadline", 15), (251, 146, 60), "Subheadline Focus")
+    heat_cta = heat_zone_markup("cta", 60, fields.get("attn_cta", 30), (250, 204, 21), "CTA Focus")
+    heat_proof = heat_zone_markup("proof", 84, fields.get("attn_proof", 15), (56, 189, 248), "Social Proof Focus")
 
     return f"""
     <!DOCTYPE html>
@@ -535,30 +651,23 @@ def render_hero_preview(fields, before_snapshot, variant_id):
                 padding: 14px 32px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer;
             }}
             .ai-proof {{ font-size: 13px; color: #94a3b8; font-weight: 700; }}
-            
-            /* Original View Styles */
-            .orig-view {{
-                background: #0f172a; border: 1px solid #1e293b; border-radius: 24px; padding: 60px 40px; text-align: left;
-                display: none; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            }}
-            .orig-badge {{
-                display: inline-block; background: #1e293b; color: #cbd5e1; font-size: 12px; font-weight: 800;
-                padding: 6px 14px; border-radius: 8px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px;
-            }}
-            .orig-h1 {{ font-size: 32px; font-weight: 800; color: #fff; margin: 0 0 16px 0; line-height: 1.3; }}
-            .orig-h2 {{ font-size: 20px; font-weight: 600; color: #a5b4fc; margin: 0 0 24px 0; }}
-            .orig-p {{ font-size: 16px; color: #94a3b8; margin: 0 0 32px 0; line-height: 1.6; max-width: 700px; }}
-            .orig-btn {{ background: #334155; color: white; border: none; padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }}
-            
+
             /* Heatmap Overlay */
             #heatmap-{variant_id} {{ opacity: 0; pointer-events: none; transition: opacity 0.35s ease; position: absolute; inset: 0; z-index: 10; }}
-            .heat-zone {{ position: absolute; border-radius: 20px; mix-blend-mode: screen; }}
+            .heat-zone {{ position: absolute; border-radius: 20px; mix-blend-mode: screen; transition: all 0.3s ease; }}
             .heat-label {{
                 position: absolute; font-size: 12px; font-weight: 800; letter-spacing: 0.04em;
                 padding: 6px 12px; border-radius: 20px; background: rgba(0,0,0,0.8);
                 white-space: nowrap; z-index: 11; border: 1px solid rgba(255,255,255,0.1);
             }}
             .dot {{ display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }}
+            .heat-rationale {{
+                position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+                width: 88%; max-width: 620px; background: rgba(0,0,0,0.82); border: 1px solid rgba(255,255,255,0.12);
+                border-radius: 12px; padding: 10px 16px; font-size: 12px; font-weight: 500; line-height: 1.5;
+                color: #E5E7EB; text-align: left; z-index: 12;
+            }}
+            .heat-rationale b {{ color: #A5B4FC; }}
             
             @media (max-width: 600px) {{
                 .ai-h1 {{ font-size: 32px; }}
@@ -569,8 +678,6 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     </head>
     <body>
         <div class="toolbar">
-            <button id="btn-redesign-{variant_id}" class="toolbar-btn active" onclick="showView('{variant_id}','redesign')">AI Redesign</button>
-            <button id="btn-original-{variant_id}" class="toolbar-btn" onclick="showView('{variant_id}','original')">Original Content</button>
             <button id="btn-heat-{variant_id}" class="toolbar-btn" onclick="toggleHeatmap('{variant_id}')">Attention Heatmap</button>
             <button id="btn-tagline-{variant_id}" class="toolbar-btn" onclick="toggleTagline('{variant_id}')">🔄 Try Other Pitch</button>
         </div>
@@ -593,36 +700,18 @@ def render_hero_preview(fields, before_snapshot, variant_id):
                 </div>
                 <div class="ai-proof">{social_proof}</div>
 
-                <!-- Heatmap Overlay -->
+                <!-- Heatmap Overlay: zone size/intensity/% driven by this copy's AI-estimated attention split -->
                 <div id="heatmap-{variant_id}">
-                    <div class="heat-zone" style="top:15%; left:10%; width:80%; height:30%; background:radial-gradient(ellipse at center, rgba(239,68,68,0.7), rgba(239,68,68,0) 70%);"></div>
-                    <span class="heat-label" style="top:20%; left:50%; transform:translateX(-50%); color:#FCA5A5;">
-                        <span class="dot" style="background:#EF4444;"></span> 65% Headline Focus
-                    </span>
-                    <div class="heat-zone" style="top:60%; left:20%; width:60%; height:20%; background:radial-gradient(ellipse at center, rgba(250,204,21,0.6), rgba(250,204,21,0) 70%);"></div>
-                    <span class="heat-label" style="top:68%; left:50%; transform:translateX(-50%); color:#FDE68A;">
-                        <span class="dot" style="background:#FACC15;"></span> 25% CTA Focus
-                    </span>
+                    {heat_headline}
+                    {heat_subheadline}
+                    {heat_cta}
+                    {heat_proof}
+                    <div class="heat-rationale"><b>🧠 Why this pattern:</b> {attn_rationale}</div>
                 </div>
-            </div>
-
-            <!-- ORIGINAL CONTENT -->
-            <div id="original-{variant_id}" class="orig-view">
-                <span class="orig-badge">Original Supplied Structure</span>
-                <h1 class="orig-h1">{before_h1}</h1>
-                <h2 class="orig-h2">{before_h2}</h2>
-                <p class="orig-p">{before_body}</p>
-                <button class="orig-btn">Learn More</button>
             </div>
         </div>
 
         <script>
-            function showView(id, view) {{
-                document.getElementById('redesign-' + id).style.display = (view === 'redesign') ? 'block' : 'none';
-                document.getElementById('original-' + id).style.display = (view === 'original') ? 'block' : 'none';
-                document.getElementById('btn-redesign-' + id).classList.toggle('active', view === 'redesign');
-                document.getElementById('btn-original-' + id).classList.toggle('active', view === 'original');
-            }}
             function toggleHeatmap(id) {{
                 var hm = document.getElementById('heatmap-' + id);
                 var isOn = hm.style.opacity === '1';
@@ -642,6 +731,75 @@ def render_hero_preview(fields, before_snapshot, variant_id):
     </body>
     </html>
     """
+
+def render_export_html(fields):
+    """
+    Production-ready hero section only: no app toolbar, no heatmap overlay, no tagline-toggle JS,
+    no Original-content block. This is what actually gets shipped to a real site, so it stays
+    a clean, dependency-light static HTML document.
+    """
+    badge = esc(fields["badge"])
+    headline = esc(fields["headline"])
+    subheadline = esc(fields["subheadline"])
+    cta_primary = esc(fields["cta_primary"])
+    cta_secondary = esc(fields["cta_secondary"])
+    social_proof = esc(fields["social_proof"])
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{headline}</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+    * {{ box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; padding: 0; }}
+    body {{ background-color: #090d16; }}
+    .hero {{
+        max-width: 900px; margin: 0 auto; background: rgba(17, 24, 39, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 60px 40px;
+        text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }}
+    .hero-badge {{
+        display: inline-block; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3);
+        color: #A5B4FC; font-size: 12px; font-weight: 800; padding: 6px 16px; border-radius: 20px;
+        text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px;
+    }}
+    .hero-h1 {{ font-size: 42px; font-weight: 900; color: #fff; margin: 0 0 24px 0; line-height: 1.15; letter-spacing: -0.02em; }}
+    .hero-h2 {{ font-size: 18px; color: #cbd5e1; margin: 0 auto 32px auto; max-width: 600px; line-height: 1.6; font-weight: 500; }}
+    .hero-buttons {{ display: flex; gap: 16px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }}
+    .btn-primary {{
+        background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; border: none;
+        padding: 14px 32px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer;
+        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+    }}
+    .btn-secondary {{
+        background: rgba(30, 41, 59, 0.8); color: #e2e8f0; border: 1px solid #334155;
+        padding: 14px 32px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer;
+    }}
+    .hero-proof {{ font-size: 13px; color: #94a3b8; font-weight: 700; }}
+    @media (max-width: 600px) {{
+        .hero {{ padding: 40px 24px; }}
+        .hero-h1 {{ font-size: 32px; }}
+        .hero-buttons {{ flex-direction: column; width: 100%; }}
+        .btn-primary, .btn-secondary {{ width: 100%; }}
+    }}
+</style>
+</head>
+<body>
+    <section class="hero">
+        <span class="hero-badge">{badge}</span>
+        <h1 class="hero-h1">{headline}</h1>
+        <h2 class="hero-h2">{subheadline}</h2>
+        <div class="hero-buttons">
+            <button class="btn-primary">{cta_primary}</button>
+            <button class="btn-secondary">{cta_secondary}</button>
+        </div>
+        <div class="hero-proof">{social_proof}</div>
+    </section>
+</body>
+</html>
+"""
 
 def render_single_scorecard(main):
     col1, col2 = st.columns([1, 2])
@@ -866,28 +1024,29 @@ if st.session_state.get('has_data', False):
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown('<span class="site-label-blue">YOUR SITE / PITCH</span>', unsafe_allow_html=True)
-                st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
+                st.components.v1.html(render_hero_preview(main, "main"), height=680, scrolling=True)
             with c2:
                 st.markdown('<span class="site-label-red">COMPETITOR</span>', unsafe_allow_html=True)
-                st.components.v1.html(render_hero_preview(comp, before_comp, "comp"), height=680, scrolling=True)
+                st.components.v1.html(render_hero_preview(comp, "comp"), height=680, scrolling=True)
         else:
-            st.components.v1.html(render_hero_preview(main, before_main, "main"), height=680, scrolling=True)
+            st.components.v1.html(render_hero_preview(main, "main"), height=680, scrolling=True)
 
     with tab3:
         st.subheader("Ready-to-Use HTML")
+        st.caption("Clean, standalone hero section — production-ready, no app UI baked in.")
         if is_battle and comp:
             sub1, sub2 = st.tabs(["Your Item HTML", "Competitor Item HTML"])
             with sub1:
-                html_main = render_hero_preview(main, before_main, "main")
+                html_main = render_export_html(main)
                 st.caption("Hero section HTML code for **Your Item**:")
                 st.code(html_main, language="html")
                 st.download_button("Download Your Item HTML", data=html_main, file_name="your_hero_redesign.html", mime="text/html")
             with sub2:
-                html_comp = render_hero_preview(comp, before_comp, "comp")
+                html_comp = render_export_html(comp)
                 st.caption("Hero section HTML code for **Competitor**:")
                 st.code(html_comp, language="html")
                 st.download_button("Download Competitor HTML", data=html_comp, file_name="competitor_hero.html", mime="text/html")
         else:
-            html_main = render_hero_preview(main, before_main, "main")
+            html_main = render_export_html(main)
             st.code(html_main, language="html")
             st.download_button("Download Hero HTML", data=html_main, file_name="hero_redesign.html", mime="text/html")
