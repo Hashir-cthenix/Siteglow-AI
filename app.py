@@ -167,7 +167,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown('<span class="brand-badge">⚡ AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
+st.markdown('<span class="brand-badge">AI CRO Tutor & Auto-Redesign Engine</span>', unsafe_allow_html=True)
 st.markdown('<div class="main-title">SiteGlow AI</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="sub-title">Diagnoses website copy and pitch text, rewrites hero sections into high-converting layouts, and teaches '
